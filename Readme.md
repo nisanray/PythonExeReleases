@@ -48,10 +48,41 @@ This repository uses GitHub Actions to automatically:
 
 Visit the [Releases](../../releases/latest) page to download the latest built executables.
 
+### Quick Links
+- **📥 [Download Latest Release](../../releases/latest)** - Get the newest EXE files
+- **📋 [All Releases](../../releases)** - View complete release history
+- **🔧 [GitHub Actions](../../actions)** - Monitor build status
+- **📖 [Repository](../../)** - View source code
+- **🐛 [Issues](../../issues)** - Report bugs or request features
+
+### Direct Download Links (Latest Release)
+- [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
+
+> **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
+
 ## Dependencies
 
 - **PyQt6**: Modern GUI framework for desktop applications
 - **pyinstaller**: Tool for converting Python applications to executables
+
+## Getting Started
+
+### For Users (Download & Run)
+1. Visit the [Releases page](../../releases/latest)
+2. Download the latest `lock_scheduler_gui.exe`
+3. Run the executable (no installation required)
+
+### For Developers (Setup Repository)
+1. Create a new repository on GitHub named `PythonToEXERelease`
+2. Add the remote to your local repository:
+   ```bash
+   git remote add origin https://github.com/YOUR_USERNAME/PythonToEXERelease.git
+   ```
+3. Push to GitHub:
+   ```bash
+   git push -u origin main
+   ```
+4. GitHub Actions will automatically build and create the first release
 
 ## Development Setup
 
