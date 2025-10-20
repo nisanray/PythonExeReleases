@@ -8,60 +8,33 @@ on:
 jobs:
   build-release:
     runs-on: windows-latest
-
+    permissions:
+      contents: write
+      
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller
-        if exist requirements.txt pip install -r requirements.txt
-
-    - name: Build EXEs
+        pip install -r requirements.txt
+        
+    - name: Build EXE
       run: |
-        mkdir dist
-        for %%f in (Codes\*.py) do pyinstaller --onefile --distpath dist %%f
-
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
+        pyinstaller --onefile --windowed --distpath dist Codes/lock_scheduler_gui.py
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.run_number }}
-        release_name: Release ${{ github.run_number }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload EXEs to Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
         files: dist/*.exe
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Update README with EXE Links
-      run: |
-        echo "# My Python EXEs Repo" > README.md
-        echo "" >> README.md
-        echo "This repository contains Python scripts automatically converted to Windows executables using GitHub Actions." >> README.md
-        echo "" >> README.md
-        echo "## Download Latest EXEs" >> README.md
-        echo "" >> README.md
-        for file in dist/*.exe; do
-          url="https://github.com/${{ github.repository }}/releases/latest/download/$(basename $file)"
-          echo "- [$(basename $file)]($url)" >> README.md
-        done
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
-        git add README.md
-        git commit -m "Update README with latest EXEs" || echo "No changes to commit"
-        git push origin master || echo "Push failed"
