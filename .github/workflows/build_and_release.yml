@@ -3,7 +3,7 @@ name: Build and Release EXEs
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   build-release:
@@ -27,7 +27,7 @@ jobs:
     - name: Build EXEs
       run: |
         mkdir dist
-        for %%f in (codes\*.py) do pyinstaller --onefile --distpath dist %%f
+        for %%f in (Codes\*.py) do pyinstaller --onefile --distpath dist %%f
 
     - name: Create GitHub Release
       id: create_release
@@ -43,6 +43,7 @@ jobs:
     - name: Upload EXEs to Release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: v${{ github.run_number }}
         files: dist/*.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,4 +64,4 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git add README.md
         git commit -m "Update README with latest EXEs" || echo "No changes to commit"
-        git push origin main || echo "Push failed"
+        git push origin master || echo "Push failed"
