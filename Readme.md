@@ -4,6 +4,7 @@ This repository contains Python applications that are automatically converted to
 
 ## Applications
 
+
 ### Lock Scheduler GUI
 A Windows desktop application that provides automated system lock functionality with multiple scheduling options and mouse-triggered locking capabilities.
 
@@ -16,6 +17,15 @@ A Windows desktop application that provides automated system lock functionality 
 - Modern tabbed interface built with PyQt6
 - Real-time current time display and professional Windows 11-inspired design
 
+### Internet Speed Meter
+A floating, draggable overlay that displays real-time internet upload and download speeds on Windows.
+
+**Features:**
+- Minimal, always-on-top overlay window
+- Real-time download and upload speed display
+- Draggable and closable interface
+- Uses PyQt6 for GUI and psutil for network statistics
+
 ## Repository Structure
 
 ```
@@ -25,6 +35,7 @@ PythonToEXERelease/
 │       └── build_and_release.yml    # GitHub Actions workflow for automated builds
 ├── Codes/
 │   └── lock_scheduler_gui.py        # Lock Scheduler application source code
+├── Internet_Speed_Meter.py          # Internet Speed Meter overlay source code
 ├── requirements.txt                 # Python dependencies
 ├── README.md                       # This file
 └── .gitignore                      # Git ignore patterns
@@ -64,6 +75,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 
 - **PyQt6**: Modern GUI framework for desktop applications
 - **pyinstaller**: Tool for converting Python applications to executables
+- **psutil**: Cross-platform library for retrieving information on running processes and system utilization (used by Internet Speed Meter)
 
 ## Getting Started
 

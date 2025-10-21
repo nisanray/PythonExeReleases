@@ -1,2 +1,3 @@
-PyQT6
+PyQt6
 pyinstaller
+psutil
