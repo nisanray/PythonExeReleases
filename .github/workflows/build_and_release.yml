@@ -25,9 +25,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Build EXE
+    - name: Build all EXEs in Codes/
       run: |
-        pyinstaller --onefile --windowed --distpath dist Codes/lock_scheduler_gui.py
+        for %f in (Codes\*.py) do pyinstaller --onefile --windowed --distpath dist "%f"
         
     - name: Create Release
       uses: softprops/action-gh-release@v2
