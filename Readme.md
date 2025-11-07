@@ -5,6 +5,19 @@ This repository contains Python applications that are automatically converted to
 ## Applications
 
 
+### LAN Share (File Upload Server)
+A cross-platform local file sharing server with a modern web interface and a PyQt6 GUI for easy control. Allows uploading files from any device on the same network to your computer via a browser.
+
+**Features:**
+- Drag-and-drop or select files to upload from any device on the LAN
+- Modern, responsive web interface for uploads
+- PyQt6 desktop GUI to start/stop the server, set upload folder, and view logs
+- Customizable upload folder location
+- Displays LAN IP and server URL for easy access
+- All files saved with unique names to prevent overwrites
+- Works on Windows, macOS, and Linux
+
+
 ### Lock Scheduler GUI
 A Windows desktop application that provides automated system lock functionality with multiple scheduling options and mouse-triggered locking capabilities.
 
@@ -35,6 +48,7 @@ PythonToEXERelease/
 │       └── build_and_release.yml    # GitHub Actions workflow for automated builds
 ├── Codes/
 │   └── lock_scheduler_gui.py        # Lock Scheduler application source code
+│   └── lan_share.py                # LAN Share (file upload server) source code
 ├── Internet_Speed_Meter.py          # Internet Speed Meter overlay source code
 ├── requirements.txt                 # Python dependencies
 ├── README.md                       # This file
@@ -66,8 +80,10 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - **📖 [Repository](../../)** - View source code
 - **🐛 [Issues](../../issues)** - Report bugs or request features
 
+
 ### Direct Download Links (Latest Release)
 - [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
+- [lan_share.exe](../../releases/latest/download/lan_share.exe) - LAN Share (File Upload Server)
 
 > **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
 
@@ -76,6 +92,9 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - **PyQt6**: Modern GUI framework for desktop applications
 - **pyinstaller**: Tool for converting Python applications to executables
 - **psutil**: Cross-platform library for retrieving information on running processes and system utilization (used by Internet Speed Meter)
+
+- **Flask**: Lightweight web framework for the LAN Share server
+- **Werkzeug**: WSGI utility library used by Flask
 
 ## Getting Started
 
@@ -112,6 +131,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 3. Run applications locally:
    ```bash
    python Codes/lock_scheduler_gui.py
+   python Codes/lan_share.py
    ```
 
 ## Manual Build
@@ -120,6 +140,7 @@ To manually build executables:
 
 ```bash
 pyinstaller --onefile --windowed Codes/lock_scheduler_gui.py
+pyinstaller --onefile --windowed Codes/lan_share.py
 ```
 
 ## System Requirements
