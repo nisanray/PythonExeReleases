@@ -28,7 +28,7 @@ jobs:
     - name: Build all EXEs in Codes/
       run: |
         foreach ($f in Get-ChildItem -Path Codes -Filter *.py) {
-          pyinstaller --onefile --windowed --distpath dist "$($f.FullName)"
+          pyinstaller --onefile --windowed --distpath dist --hidden-import=flask --hidden-import=werkzeug --hidden-import=socket --hidden-import=engineio --hidden-import=socketio "$($f.FullName)"
         }
         
     - name: Create Release
