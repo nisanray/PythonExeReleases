@@ -39,6 +39,16 @@ A floating, draggable overlay that displays real-time internet upload and downlo
 - Draggable and closable interface
 - Uses PyQt6 for GUI and psutil for network statistics
 
+### LAN Chat & File Share
+A comprehensive LAN messenger and file sharing tool. It combines a Flask-based web server for browser-based chatting/file sharing with a PyQt6 desktop admin interface.
+
+**Features:**
+- **Local Chat**: Browser-based chat accessible from any device on the network.
+- **File Sharing**: Easy file upload and download via the web interface.
+- **Admin GUI**: Desktop application to monitor logs, broadcast admin messages, and manage the server.
+- **Mobile Connect**: Generates a QR code for easy mobile connection.
+- **Video/Image Preview**: In-chat previews for shared media.
+
 ## Repository Structure
 
 ```
@@ -49,6 +59,7 @@ PythonToEXERelease/
 ├── Codes/
 │   └── lock_scheduler_gui.py        # Lock Scheduler application source code
 │   └── lan_share.py                # LAN Share (file upload server) source code
+│   └── lan_chat_file_share.py      # LAN Chat & File Share source code
 ├── Internet_Speed_Meter.py          # Internet Speed Meter overlay source code
 ├── requirements.txt                 # Python dependencies
 ├── README.md                       # This file
@@ -84,6 +95,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 ### Direct Download Links (Latest Release)
 - [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
 - [lan_share.exe](../../releases/latest/download/lan_share.exe) - LAN Share (File Upload Server)
+- [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
 
 > **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
 
@@ -141,6 +153,7 @@ To manually build executables:
 ```bash
 pyinstaller --onefile --windowed Codes/lock_scheduler_gui.py
 pyinstaller --onefile --windowed Codes/lan_share.py
+pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
 ```
 
 ## System Requirements

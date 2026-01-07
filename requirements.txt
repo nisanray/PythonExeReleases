@@ -3,3 +3,5 @@ pyinstaller
 psutil
 Flask
 Werkzeug
+qrcode
+Pillow
