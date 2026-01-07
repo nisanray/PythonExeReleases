@@ -92,10 +92,12 @@ class QueueWriter:
     def write(self, msg):
         if msg.strip():
             self.queue.put(msg)
-        self.original_stream.write(msg)
+        if self.original_stream:
+            self.original_stream.write(msg)
 
     def flush(self):
-        self.original_stream.flush()
+        if self.original_stream:
+            self.original_stream.flush()
 
 # -------------------------------------------------------------------------
 # Part 2: Flask Server Process
