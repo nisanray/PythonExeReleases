@@ -39,6 +39,15 @@ A floating, draggable overlay that displays real-time internet upload and downlo
 - Draggable and closable interface
 - Uses PyQt6 for GUI and psutil for network statistics
 
+### YouTube Video Downloader
+A desktop tool to download YouTube videos or audio with quick presets and progress tracking.
+
+**Features:**
+- Choose best available, specific resolutions, or audio-only (MP3/M4A)
+- Automatic FFmpeg path validation with saved preferences
+- Estimated size display plus live download progress bar
+- Selectable download directory with recent path recall and logging
+
 ### LAN Chat & File Share
 A comprehensive LAN messenger and file sharing tool. It combines a Flask-based web server for browser-based chatting/file sharing with a PyQt6 desktop admin interface.
 
@@ -60,6 +69,7 @@ PythonToEXERelease/
 │   └── lock_scheduler_gui.py        # Lock Scheduler application source code
 │   └── lan_share.py                # LAN Share (file upload server) source code
 │   └── lan_chat_file_share.py      # LAN Chat & File Share source code
+│   └── yt_download.py              # YouTube Video Downloader source code
 ├── Internet_Speed_Meter.py          # Internet Speed Meter overlay source code
 ├── requirements.txt                 # Python dependencies
 ├── README.md                       # This file
@@ -96,6 +106,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
 - [lan_share.exe](../../releases/latest/download/lan_share.exe) - LAN Share (File Upload Server)
 - [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
+- [yt_download.exe](../../releases/latest/download/yt_download.exe) - YouTube Video Downloader
 
 > **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
 
@@ -107,6 +118,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 
 - **Flask**: Lightweight web framework for the LAN Share server
 - **Werkzeug**: WSGI utility library used by Flask
+- **yt-dlp**: YouTube video/audio download backend used by the downloader
 
 ## Getting Started
 
@@ -144,6 +156,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
    ```bash
    python Codes/lock_scheduler_gui.py
    python Codes/lan_share.py
+   python Codes/yt_download.py
    ```
 
 ## Manual Build
@@ -154,6 +167,7 @@ To manually build executables:
 pyinstaller --onefile --windowed Codes/lock_scheduler_gui.py
 pyinstaller --onefile --windowed Codes/lan_share.py
 pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
+pyinstaller --onefile --windowed Codes/yt_download.py
 ```
 
 ## System Requirements
