@@ -26,6 +26,8 @@ jobs:
 
     - name: Auto-detect and install dependencies from code
       shell: python
+      env:
+        PYTHONIOENCODING: utf-8
       run: |
         import ast, os, sys, subprocess, importlib.util
 
@@ -102,7 +104,7 @@ jobs:
                 try:
                     tree = ast.parse(f.read(), filename=filepath)
                 except SyntaxError:
-                    print(f"⚠️  Skipping {filepath} (syntax error)")
+                    print(f"[WARN] Skipping {filepath} (syntax error)")
                     continue
 
             for node in ast.walk(tree):
@@ -128,9 +130,9 @@ jobs:
         packages.add("pyinstaller")
 
         print("=" * 50)
-        print("📦 Detected third-party packages:")
+        print("[INFO] Detected third-party packages:")
         for pkg in sorted(packages):
-            print(f"   • {pkg}")
+            print(f"   - {pkg}")
         print("=" * 50)
 
         # Install all detected packages
@@ -140,15 +142,15 @@ jobs:
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install"] + sorted(packages)
         )
-        print("✅ All dependencies installed successfully!")
+        print("[OK] All dependencies installed successfully!")
 
     - name: Build all EXEs in Codes/
       run: |
         foreach ($f in Get-ChildItem -Path Codes -Filter *.py) {
-          Write-Host "🔨 Building: $($f.Name)"
+          Write-Host "[BUILD] Building: $($f.Name)"
           pyinstaller --onefile --windowed --distpath dist --name "$($f.BaseName)" "$($f.FullName)"
         }
-        Write-Host "✅ All EXEs built successfully!"
+        Write-Host "[OK] All EXEs built successfully!"
 
     - name: Generate release tag
       id: tag
@@ -156,13 +158,13 @@ jobs:
       run: |
         TAG="v1.0.${{ github.run_number }}"
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-        echo "📌 Release tag: $TAG"
+        echo "Release tag: $TAG"
 
     - name: Generate release body
       id: body
       shell: bash
       run: |
-        echo "## 📦 Included Applications" > release_notes.md
+        echo "## Included Applications" > release_notes.md
         echo "" >> release_notes.md
         for exe in dist/*.exe; do
           name=$(basename "$exe" .exe)
