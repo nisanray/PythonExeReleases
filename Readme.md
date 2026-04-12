@@ -69,6 +69,17 @@ An advanced image-based automation bot with a PyQt6 GUI. Uses screen image recog
 - **F9 hotkey** for emergency stop plus PyAutoGUI fail-safe (move mouse to corner)
 - Full execution logging with real-time console output
 
+### ⚡ PowerFlow Advanced System Manager
+A comprehensive Windows system utility that combines performance monitoring, security traps, and automated power management into one powerful interface.
+
+**Features:**
+- **Smart Scheduling**: Timer-based and'exact time' shutdown/restart/lock tasks.
+- **Security Traps**: Armed Jiggler (decoy movement detector), Intrusion Trap (input detector), and Ransomware Honeypot (file change detector).
+- **Physical & Network Safety**: VPN/Wi-Fi connection shields and USB Kill Switch.
+- **Productivity Tools**: App Quota (usage limits), Focus Mode (instantly kills forbidden apps), and Mouse Jiggler (stay-awake).
+- **Resource Protection**: CPU/Thermal sustained load monitor and Battery Savior for laptops.
+- **Stealth Mode**: Screen Shield (transparent lock) and Fake Windows Update decoy screens.
+
 ## Repository Structure
 
 ```
@@ -81,6 +92,7 @@ PythonExeReleases/
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
 │   ├── lan_share.py                 # LAN Share (file upload server)
 │   ├── lock_scheduler_gui.py        # Lock Scheduler application
+│   ├── powerflow_advanced_system_manager.py # PowerFlow System Manager
 │   ├── unsave_facebook.py           # Facebook Unsave Automation Bot
 │   └── yt_download.py               # YouTube Video Downloader
 ├── Readme.md                        # This file
@@ -119,6 +131,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
 - [yt_download.exe](../../releases/latest/download/yt_download.exe) - YouTube Video Downloader
 - [unsave_facebook.exe](../../releases/latest/download/unsave_facebook.exe) - Facebook Unsave Automation Bot
+- [powerflow_advanced_system_manager.exe](../../releases/latest/download/powerflow_advanced_system_manager.exe) - PowerFlow System Manager
 
 > **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
 
@@ -149,6 +162,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
    python Codes/lan_chat_file_share.py
    python Codes/yt_download.py
    python Codes/unsave_facebook.py
+   python Codes/powerflow_advanced_system_manager.py
    ```
 
 ## Manual Build
@@ -163,6 +177,7 @@ pyinstaller --onefile --windowed Codes/lan_share.py
 pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
 pyinstaller --onefile --windowed Codes/yt_download.py
 pyinstaller --onefile --windowed Codes/unsave_facebook.py
+pyinstaller --onefile --windowed Codes/powerflow_advanced_system_manager.py
 ```
 
 ## System Requirements

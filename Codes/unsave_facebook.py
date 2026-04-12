@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QGridLayout, QFrame, QSizePolicy
 )
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
-from PyQt6.QtGui import QFont, QColor, QPalette, QIcon
 
 # ==========================================
 # 1. Logging Setup
@@ -30,165 +29,166 @@ logger = logging.getLogger(__name__)
 pyautogui.FAILSAFE = True
 
 # ==========================================
-# 2. Style Constants
+# 2. Style Constants (Light Theme & Green)
 # ==========================================
-BG            = "#f5f5f3"
+BG            = "#f4f7f5"
 CARD_BG       = "#ffffff"
-PANEL_BG      = "#f0eeea"
-BORDER        = "#dddbd4"
-BORDER_FOCUS  = "#378add"
-TEXT_PRIMARY  = "#1a1a18"
-TEXT_MUTED    = "#5f5e5a"
-TEXT_DIM      = "#888780"
-SUCCESS_BG    = "#eaf3de"
-SUCCESS_FG    = "#3b6d11"
-SUCCESS_BR    = "#97c459"
-DANGER        = "#a32d2d"
-DANGER_BG     = "#fcebeb"
-WARNING       = "#854f0b"
+PANEL_BG      = "#eef3f0"
+BORDER        = "#c5d1c9"
+BORDER_FOCUS  = "#4caf50"
+TEXT_PRIMARY  = "#1e2b22"
+TEXT_MUTED    = "#566b5d"
+TEXT_DIM      = "#859c8d"
+SUCCESS_BG    = "#e8f5e9"
+SUCCESS_FG    = "#1b5e20"
+SUCCESS_BR    = "#81c784"
+DANGER        = "#d32f2f"
+DANGER_BG     = "#ffebee"
+WARNING       = "#ed6c02"
+ACCENT        = "#4caf50"
+ACCENT_SOFT   = "#c8e6c9"
+ACCENT_2      = "#388e3c"
 
 APP_STYLE = f"""
 QMainWindow, QWidget {{
     background-color: {BG};
     color: {TEXT_PRIMARY};
     font-family: 'Segoe UI', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 13px;
+    font-size: 11px;
 }}
 
 /* ── Group boxes ──────────────────────────── */
 QGroupBox {{
     background-color: {CARD_BG};
     border: 1px solid {BORDER};
-    border-radius: 10px;
-    margin-top: 14px;
-    padding: 14px 16px 12px 16px;
+    border-top: 2px solid {ACCENT};
+    border-radius: 4px;
+    margin-top: 10px;
+    padding: 6px 6px 4px 6px;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.4px;
-    color: {TEXT_MUTED};
+    color: {ACCENT_2};
 }}
 QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    left: 14px;
-    top: -1px;
-    padding: 0 6px;
+    left: 8px;
+    top: -2px;
+    padding: 0 4px;
     background-color: {CARD_BG};
+    color: {ACCENT_2};
 }}
 
 /* ── Labels ───────────────────────────────── */
 QLabel {{
     color: {TEXT_MUTED};
-    font-size: 12px;
+    font-size: 11px;
     background: transparent;
 }}
 QLabel#heading {{
     color: {TEXT_PRIMARY};
-    font-size: 18px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 600;
 }}
 QLabel#subheading {{
     color: {TEXT_MUTED};
-    font-size: 12px;
+    font-size: 10px;
 }}
 QLabel#path_label {{
     color: {TEXT_DIM};
-    font-size: 11px;
+    font-size: 9px;
     font-style: italic;
 }}
 
 /* ── Spin boxes ───────────────────────────── */
 QSpinBox, QDoubleSpinBox {{
-    background-color: {PANEL_BG};
+    background-color: {CARD_BG};
     border: 1px solid {BORDER};
-    border-radius: 6px;
+    border-radius: 3px;
     color: {TEXT_PRIMARY};
-    padding: 5px 8px;
-    min-height: 28px;
-    font-size: 13px;
+    padding: 1px 4px;
+    min-height: 18px;
+    font-size: 11px;
 }}
 QSpinBox:focus, QDoubleSpinBox:focus {{
     border: 1px solid {BORDER_FOCUS};
+    background-color: #ffffff;
 }}
 QSpinBox::up-button, QDoubleSpinBox::up-button,
 QSpinBox::down-button, QDoubleSpinBox::down-button {{
-    background-color: {BORDER};
+    background-color: {PANEL_BG};
     border: none;
-    width: 16px;
-    border-radius: 3px;
-    margin: 2px;
+    width: 12px;
+    border-radius: 2px;
+    margin: 1px;
 }}
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
 QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
-    background-color: #c0beb6;
+    background-color: {ACCENT_SOFT};
 }}
 
 /* ── Combo box ────────────────────────────── */
 QComboBox {{
-    background-color: {PANEL_BG};
+    background-color: {CARD_BG};
     border: 1px solid {BORDER};
-    border-radius: 6px;
+    border-radius: 3px;
     color: {TEXT_PRIMARY};
-    padding: 5px 8px;
-    min-height: 28px;
-    font-size: 13px;
+    padding: 1px 4px;
+    min-height: 18px;
+    font-size: 11px;
 }}
 QComboBox:focus {{ border: 1px solid {BORDER_FOCUS}; }}
-QComboBox::drop-down {{ border: none; width: 20px; }}
+QComboBox::drop-down {{ border: none; width: 16px; }}
 QComboBox QAbstractItemView {{
     background-color: {CARD_BG};
     border: 1px solid {BORDER};
-    border-radius: 6px;
+    border-radius: 3px;
     color: {TEXT_PRIMARY};
-    selection-background-color: #e6f1fb;
+    selection-background-color: {ACCENT_SOFT};
     selection-color: {TEXT_PRIMARY};
-    padding: 4px;
 }}
 
 /* ── Check box ────────────────────────────── */
 QCheckBox {{
     color: {TEXT_PRIMARY};
-    font-size: 12px;
-    spacing: 8px;
+    font-size: 11px;
+    spacing: 4px;
 }}
 QCheckBox::indicator {{
-    width: 15px;
-    height: 15px;
-    border-radius: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
     border: 1px solid {BORDER};
-    background-color: {PANEL_BG};
+    background-color: {CARD_BG};
 }}
 QCheckBox::indicator:checked {{
-    background-color: {SUCCESS_BG};
-    border: 1px solid {SUCCESS_BR};
-    image: none;
+    background-color: {ACCENT};
+    border: 1px solid {ACCENT};
 }}
-QCheckBox::indicator:hover {{
-    border: 1px solid {BORDER_FOCUS};
-}}
+QCheckBox::indicator:hover {{ border: 1px solid {ACCENT}; }}
 
 /* ── Text edit (log console) ──────────────── */
 QTextEdit {{
-    background-color: {PANEL_BG};
+    background-color: {CARD_BG};
     border: 1px solid {BORDER};
-    border-radius: 8px;
-    color: {TEXT_MUTED};
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
-    font-size: 12px;
-    padding: 10px;
+    border-radius: 4px;
+    color: {TEXT_PRIMARY};
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 10px;
+    padding: 4px;
 }}
 
 /* ── Scrollbar ────────────────────────────── */
 QScrollBar:vertical {{
     background: {PANEL_BG};
-    width: 6px;
-    border-radius: 3px;
+    width: 8px;
+    border-radius: 4px;
     margin: 0;
 }}
 QScrollBar::handle:vertical {{
     background: {BORDER};
-    border-radius: 3px;
-    min-height: 30px;
+    border-radius: 4px;
+    min-height: 20px;
 }}
 QScrollBar::handle:vertical:hover {{ background: {TEXT_DIM}; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
@@ -197,34 +197,32 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QPushButton {{
     background-color: {PANEL_BG};
     border: 1px solid {BORDER};
-    border-radius: 7px;
+    border-radius: 3px;
     color: {TEXT_PRIMARY};
-    padding: 8px 14px;
-    font-size: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
     font-weight: 500;
-    min-height: 32px;
+    min-height: 20px;
 }}
 QPushButton:hover {{
-    background-color: #e8e6e0;
-    border: 1px solid #c0beb6;
+    background-color: {ACCENT_SOFT};
+    border: 1px solid {ACCENT};
 }}
-QPushButton:pressed {{ background-color: {BORDER}; }}
-QPushButton:disabled {{ color: {TEXT_DIM}; border-color: {BORDER}; }}
+QPushButton:pressed {{ background-color: #a5d6a7; }}
+QPushButton:disabled {{ color: #a0aab2; border-color: #d1d9e0; background-color: #f0f3f6; }}
 
 /* ── Browse buttons ───────────────────────── */
 QPushButton#browse_btn {{
-    background-color: {PANEL_BG};
+    background-color: {CARD_BG};
     border: 1px dashed {BORDER};
-    border-radius: 7px;
+    border-radius: 3px;
     color: {TEXT_MUTED};
-    padding: 8px 14px;
-    font-size: 12px;
     text-align: left;
 }}
 QPushButton#browse_btn:hover {{
-    border: 1px dashed {BORDER_FOCUS};
-    color: {BORDER_FOCUS};
-    background-color: #e6f1fb;
+    border: 1px dashed {ACCENT};
+    color: {ACCENT_2};
+    background-color: {ACCENT_SOFT};
 }}
 QPushButton#browse_btn[selected="true"] {{
     border: 1px solid {SUCCESS_BR};
@@ -232,35 +230,46 @@ QPushButton#browse_btn[selected="true"] {{
     background-color: {SUCCESS_BG};
 }}
 
+/* ── Help button ─────────────────────────── */
+QPushButton#help_btn {{
+    background: {PANEL_BG};
+    border: 1px solid {BORDER};
+    border-radius: 3px;
+    color: {TEXT_PRIMARY};
+    font-size: 10px;
+    font-weight: 600;
+    min-height: 18px;
+    min-width: 40px;
+    padding: 2px 6px;
+}}
+QPushButton#help_btn:hover {{ background: {ACCENT_SOFT}; border: 1px solid {ACCENT}; }}
+
 /* ── START button ─────────────────────────── */
 QPushButton#start_btn {{
-    background-color: {TEXT_PRIMARY};
-    border: none;
-    border-radius: 8px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {ACCENT}, stop:1 {ACCENT_2});
+    border: 1px solid #2e7d32;
+    border-radius: 4px;
     color: #ffffff;
-    font-size: 13px;
-    font-weight: 500;
-    min-height: 44px;
+    font-size: 12px;
+    font-weight: 700;
+    min-height: 26px;
 }}
-QPushButton#start_btn:hover {{ background-color: #2c2c2a; border: none; }}
-QPushButton#start_btn:pressed {{ background-color: #444441; }}
-QPushButton#start_btn:disabled {{ background-color: {BORDER}; color: {TEXT_DIM}; }}
+QPushButton#start_btn:hover {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #66bb6a, stop:1 #43a047); }}
+QPushButton#start_btn:pressed {{ background: #2e7d32; }}
+QPushButton#start_btn:disabled {{ background: #c5e1a5; color: #ffffff; border: 1px solid #aed581; }}
 
 /* ── STOP button ──────────────────────────── */
 QPushButton#stop_btn {{
-    background-color: transparent;
-    border: 1px solid {BORDER};
-    border-radius: 8px;
+    background-color: {CARD_BG};
+    border: 1px solid #ef5350;
+    border-radius: 4px;
     color: {DANGER};
-    font-size: 13px;
-    font-weight: 500;
-    min-height: 44px;
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 26px;
 }}
-QPushButton#stop_btn:hover {{
-    background-color: {DANGER_BG};
-    border: 1px solid #f09595;
-}}
-QPushButton#stop_btn:disabled {{ color: {TEXT_DIM}; border-color: {BORDER}; }}
+QPushButton#stop_btn:hover {{ background-color: {DANGER_BG}; border: 1px solid {DANGER}; }}
+QPushButton#stop_btn:disabled {{ color: {TEXT_DIM}; border-color: {BORDER}; background-color: {PANEL_BG}; }}
 
 /* ── Divider ──────────────────────────────── */
 QFrame#divider {{
@@ -403,14 +412,13 @@ class AutomationWorker(QThread):
 # 4. Compact labeled field helper
 # ==========================================
 def labeled_row(label_text, widget):
-    """Returns a QWidget containing a label above the input widget."""
     container = QWidget()
     container.setStyleSheet("background: transparent;")
     v = QVBoxLayout(container)
     v.setContentsMargins(0, 0, 0, 0)
-    v.setSpacing(4)
+    v.setSpacing(1) # Highly compact spacing
     lbl = QLabel(label_text)
-    lbl.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-weight: 600; letter-spacing: 0.6px;")
+    lbl.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 10px; font-weight: 600;")
     v.addWidget(lbl)
     v.addWidget(widget)
     return container
@@ -445,32 +453,33 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Image Automation Bot")
-        self.resize(680, 620)
-        self.setMinimumWidth(640)
         self.worker = None
         self.hotkey_listener = None
         self.img1_path = ""
         self.img2_path = ""
         self.init_ui()
+        
+        # More compact default sizing
+        self.resize(500, 520)
         self.setup_hotkeys()
 
     # ── UI construction ────────────────────────────────────────────
     def init_ui(self):
         root = QWidget()
-        root.setStyleSheet(f"background-color: {BG};")
         outer = QVBoxLayout(root)
-        outer.setContentsMargins(16, 14, 16, 12)
-        outer.setSpacing(8)
+        # Reduced external margins and spacing
+        outer.setContentsMargins(8, 8, 8, 8)
+        outer.setSpacing(6)
 
         # ── Header ─────────────────────────────────────────────────
         header = QHBoxLayout()
-        header.setSpacing(0)
+        header.setSpacing(4)
 
         title_col = QVBoxLayout()
-        title_col.setSpacing(2)
+        title_col.setSpacing(0)
         h1 = QLabel("Automation Bot")
         h1.setObjectName("heading")
-        sub = QLabel("Image recognition · click automation · cycle control")
+        sub = QLabel("Image recognition · click automation")
         sub.setObjectName("subheading")
         title_col.addWidget(h1)
         title_col.addWidget(sub)
@@ -478,13 +487,17 @@ class MainWindow(QMainWindow):
         self.status_badge = QLabel("Idle")
         self.status_badge.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.status_badge.setStyleSheet(
-            f"color: {TEXT_MUTED}; font-size: 11px; font-weight: 500; "
-            f"background: {PANEL_BG}; "
-            f"border: 1px solid {BORDER}; border-radius: 6px; padding: 3px 10px;"
+            f"color: {TEXT_MUTED}; font-size: 10px; font-weight: 600; "
+            f"background: {CARD_BG}; border: 1px solid {BORDER}; "
+            f"border-radius: 3px; padding: 2px 6px;"
         )
+        self.btn_help = QPushButton("Help")
+        self.btn_help.setObjectName("help_btn")
+        self.btn_help.clicked.connect(self.show_help)
 
         header.addLayout(title_col)
         header.addStretch()
+        header.addWidget(self.btn_help)
         header.addWidget(self.status_badge)
         outer.addLayout(header)
         outer.addWidget(divider())
@@ -492,47 +505,46 @@ class MainWindow(QMainWindow):
         # ── Targets ────────────────────────────────────────────────
         targets_group = QGroupBox("Target Images")
         tg_layout = QVBoxLayout(targets_group)
-        tg_layout.setContentsMargins(12, 10, 12, 8)
-        tg_layout.setSpacing(6)
+        tg_layout.setSpacing(2)
 
         for idx in (1, 2):
             row = QHBoxLayout()
-            row.setSpacing(10)
+            row.setSpacing(4)
 
-            btn = QPushButton(f"  ＋  Select Image {idx}")
+            btn = QPushButton(f" ＋ Img {idx}")
             btn.setObjectName("browse_btn")
             btn.setProperty("selected", "false")
-            btn.setMinimumWidth(190)
+            btn.setFixedWidth(80)
             btn.clicked.connect(lambda _, n=idx: self.browse_image(n))
 
             cmb = QComboBox()
             cmb.addItems(["Left Click", "Right Click", "Double Click", "Hover"])
-            cmb.setFixedWidth(130)
+            cmb.setFixedWidth(85)
 
             spinx = make_spinbox(-2000, 2000, 1, 0)
-            spinx.setPrefix("X  ")
-            spinx.setFixedWidth(90)
+            spinx.setPrefix("X ")
+            spinx.setFixedWidth(55)
 
             spiny = make_spinbox(-2000, 2000, 1, 0)
-            spiny.setPrefix("Y  ")
-            spiny.setFixedWidth(90)
+            spiny.setPrefix("Y ")
+            spiny.setFixedWidth(55)
 
-            path_lbl = QLabel("No file selected")
-            path_lbl.setObjectName("path_label")
-            path_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-
-            row.addWidget(btn)
+            row.addWidget(labeled_row("Select", btn))
             row.addWidget(labeled_row("Action", cmb))
             row.addWidget(labeled_row("X Offset", spinx))
             row.addWidget(labeled_row("Y Offset", spiny))
             row.addStretch()
 
+            path_lbl = QLabel("No file")
+            path_lbl.setObjectName("path_label")
+
             tg_layout.addLayout(row)
             tg_layout.addWidget(path_lbl)
+            
             if idx == 1:
-                tg_layout.addWidget(divider())
-
-            if idx == 1:
+                div = divider()
+                div.setStyleSheet("margin: 2px 0;")
+                tg_layout.addWidget(div)
                 self.btn_browse1, self.cmb_action1 = btn, cmb
                 self.spin_x1, self.spin_y1 = spinx, spiny
                 self.lbl_path1 = path_lbl
@@ -546,9 +558,9 @@ class MainWindow(QMainWindow):
         # ── Settings ───────────────────────────────────────────────
         settings_group = QGroupBox("Timing & Behaviour")
         sg = QGridLayout(settings_group)
-        sg.setContentsMargins(12, 10, 12, 8)
-        sg.setHorizontalSpacing(12)
-        sg.setVerticalSpacing(6)
+        sg.setHorizontalSpacing(8)
+        sg.setVerticalSpacing(4)
+        sg.setContentsMargins(6, 6, 6, 6)
 
         self.spin_initial_delay = make_spinbox(0, 60, 0.5, 3.0, decimals=1, suffix=" s")
         self.spin_click_delay   = make_spinbox(0, 60, 0.5, 1.5, decimals=1, suffix=" s")
@@ -560,14 +572,14 @@ class MainWindow(QMainWindow):
 
         pairs = [
             ("Init Delay",    self.spin_initial_delay, "Img 1 → 2 Delay", self.spin_click_delay),
-            ("Cycle Delay",   self.spin_cycle_delay,   "Max Cycles",       self.spin_max_cycles),
-            ("Search Timeout", self.spin_timeout,      "Match Confidence", self.spin_conf),
+            ("Cycle Delay",   self.spin_cycle_delay,   "Max Cycles",      self.spin_max_cycles),
+            ("Search T-Out",  self.spin_timeout,       "Match Conf.",     self.spin_conf),
         ]
         for row_i, (l1, w1, l2, w2) in enumerate(pairs):
             sg.addWidget(labeled_row(l1, w1), row_i, 0)
             sg.addWidget(labeled_row(l2, w2), row_i, 1)
 
-        self.chk_humanize = QCheckBox("Humanize delays  (randomize ± 20% to reduce detection)")
+        self.chk_humanize = QCheckBox("Humanize delays (randomize ± 20%)")
         self.chk_humanize.setChecked(True)
         sg.addWidget(self.chk_humanize, 3, 0, 1, 2)
 
@@ -575,35 +587,34 @@ class MainWindow(QMainWindow):
 
         # ── Controls ───────────────────────────────────────────────
         ctrl = QHBoxLayout()
-        ctrl.setSpacing(10)
+        ctrl.setSpacing(6)
 
-        self.btn_start = QPushButton("▶  START")
+        self.btn_start = QPushButton("▶ START")
         self.btn_start.setObjectName("start_btn")
         self.btn_start.clicked.connect(self.start_automation)
+        self.btn_start.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        self.btn_stop = QPushButton("■  STOP  ·  F9")
+        self.btn_stop = QPushButton("■ STOP (F9)")
         self.btn_stop.setObjectName("stop_btn")
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop_automation)
+        self.btn_stop.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        ctrl.addWidget(self.btn_start, 3)
-        ctrl.addWidget(self.btn_stop, 2)
+        ctrl.addWidget(self.btn_start, 1)
+        ctrl.addWidget(self.btn_stop, 1)
         outer.addLayout(ctrl)
 
         # ── Log console ────────────────────────────────────────────
         log_header = QHBoxLayout()
+        log_header.setContentsMargins(2, 4, 2, 0)
         log_lbl = QLabel("EXECUTION LOG")
-        log_lbl.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: 10px; font-weight: 700; letter-spacing: 1.4px;"
-        )
+        log_lbl.setStyleSheet(f"color: {TEXT_DIM}; font-size: 9px; font-weight: 700;")
         clear_btn = QPushButton("Clear")
-        clear_btn.setFixedWidth(60)
-        clear_btn.setFixedHeight(22)
-        clear_btn.setStyleSheet(
-            f"background: transparent; border: none; color: {TEXT_DIM}; font-size: 11px;"
-            f"padding: 0;"
-        )
+        clear_btn.setFixedWidth(40)
+        clear_btn.setFixedHeight(16)
+        clear_btn.setStyleSheet(f"background: transparent; border: none; color: {ACCENT_2}; font-size: 9px; padding: 0;")
         clear_btn.clicked.connect(lambda: self.log_console.clear())
+        
         log_header.addWidget(log_lbl)
         log_header.addStretch()
         log_header.addWidget(clear_btn)
@@ -612,9 +623,7 @@ class MainWindow(QMainWindow):
         self.log_console = QTextEdit()
         self.log_console.setReadOnly(True)
         self.log_console.setMinimumHeight(100)
-        self.log_console.setMaximumHeight(180)
         outer.addWidget(self.log_console)
-        outer.addStretch()
 
         self.setCentralWidget(root)
 
@@ -633,20 +642,20 @@ class MainWindow(QMainWindow):
             self, f"Select Image {img_num}", "",
             "Image Files (*.png *.jpg *.jpeg *.bmp)"
         )
-        if not path:
-            return
+        if not path: return
         name = os.path.basename(path)
-        short = name if len(name) <= 32 else name[:29] + "…"
+        short = name if len(name) <= 12 else name[:10] + "…"
+        
         if img_num == 1:
             self.img1_path = path
-            self.btn_browse1.setText(f"  ✓  {short}")
+            self.btn_browse1.setText(f" ✓ {short}")
             self.btn_browse1.setProperty("selected", "true")
             self.btn_browse1.style().unpolish(self.btn_browse1)
             self.btn_browse1.style().polish(self.btn_browse1)
             self.lbl_path1.setText(path)
         else:
             self.img2_path = path
-            self.btn_browse2.setText(f"  ✓  {short}")
+            self.btn_browse2.setText(f" ✓ {short}")
             self.btn_browse2.setProperty("selected", "true")
             self.btn_browse2.style().unpolish(self.btn_browse2)
             self.btn_browse2.style().polish(self.btn_browse2)
@@ -664,14 +673,12 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str)
     def handle_error(self, msg):
         logger.error(msg)
-        self.log_console.append(
-            f"<span style='color:#ff6b6b;font-weight:600;'>✗  {msg}</span>"
-        )
+        self.log_console.append(f"<span style='color:{DANGER};font-weight:600;'>✗  {msg}</span>")
 
     # ── Validation ─────────────────────────────────────────────────
     def validate_inputs(self):
         if not self.img1_path or not self.img2_path:
-            QMessageBox.warning(self, "Missing Images", "Please select both target images before starting.")
+            QMessageBox.warning(self, "Missing Images", "Select both target images before starting.")
             return False
         for label, path in [("Image 1", self.img1_path), ("Image 2", self.img2_path)]:
             if not os.path.exists(path):
@@ -679,17 +686,55 @@ class MainWindow(QMainWindow):
                 return False
         return True
 
+    def show_help(self):
+        QMessageBox.information(
+            self,
+            "How to Use",
+            "Quick Start\n"
+            "1. Click Select Image 1 and choose the first target screenshot.\n"
+            "2. Click Select Image 2 and choose the second target screenshot.\n"
+            "3. For each image, choose Action (Left/Right/Double Click or Hover).\n"
+            "4. Optional: set X Offset and Y Offset if the click must happen away from the image center.\n"
+            "5. Configure timing and confidence settings, then click START.\n\n"
+
+            "What Each Setting Means\n"
+            "- Init Delay: Wait time before the first scan starts.\n"
+            "- Img 1 -> 2 Delay: Pause after image 1 action before searching image 2.\n"
+            "- Cycle Delay: Pause between full cycles.\n"
+            "- Max Cycles: Number of loops to run (infinity means unlimited).\n"
+            "- Search Timeout: Max time to search each image before skipping/restarting cycle.\n"
+            "- Match Confidence: Higher = stricter match, lower = easier match.\n"
+            "- Humanize Delays: Adds random timing variance (+/- 20%).\n\n"
+
+            "Safety & Control\n"
+            "- Press F9 anytime for emergency stop.\n"
+            "- Moving mouse to a screen corner also triggers pyautogui fail-safe stop.\n"
+            "- STOP button requests a graceful stop at runtime.\n\n"
+
+            "Best Practices for Reliable Matching\n"
+            "- Capture clean, tightly cropped screenshots of the target UI element.\n"
+            "- Keep display scaling and application zoom stable between capture and run.\n"
+            "- Start with confidence around 80-90%, then tune if misses occur.\n"
+            "- Use small offsets first (for example X 0, Y 0) and increase only when needed.\n\n"
+
+            "Troubleshooting\n"
+            "- START looks disabled: select both images first.\n"
+            "- Image not found repeatedly: lower confidence a little or recapture clearer images.\n"
+            "- Wrong click position: adjust X/Y offsets.\n"
+            "- Automation stops suddenly: check fail-safe trigger or timeout messages in the log.\n\n"
+
+            "The Execution Log panel shows every action, warning, and error in real time."
+        )
+
     # ── Start / Stop ───────────────────────────────────────────────
     def start_automation(self):
-        if not self.validate_inputs():
-            return
+        if not self.validate_inputs(): return
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(True)
         self.log_console.clear()
-        self._set_status("Running", SUCCESS_FG)
+        self._set_status("Running", SUCCESS_FG, SUCCESS_BG, SUCCESS_BR)
 
         conf_pct = self.spin_conf.value() / 100.0
-
         config = {
             'img1_path':      self.img1_path,
             'img1_action':    self.cmb_action1.currentText(),
@@ -718,20 +763,20 @@ class MainWindow(QMainWindow):
         if self.worker:
             self.log_message("Stop requested…")
             self.worker.stop()
-        self._set_status("Stopping", WARNING)
+        self._set_status("Stopping", WARNING, "#fff4e5", "#ffb74d")
 
     @pyqtSlot()
     def on_automation_finished(self):
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
-        self._set_status("Idle", TEXT_MUTED)
+        self._set_status("Idle", TEXT_MUTED, CARD_BG, BORDER)
 
-    def _set_status(self, text, color):
+    def _set_status(self, text, color, bg_col, border_col):
         self.status_badge.setText(text)
         self.status_badge.setStyleSheet(
-            f"color: {color}; font-size: 11px; font-weight: 500; "
-            f"background: {PANEL_BG}; "
-            f"border: 1px solid {color}; border-radius: 6px; padding: 3px 10px;"
+            f"color: {color}; font-size: 10px; font-weight: 600; "
+            f"background: {bg_col}; border: 1px solid {border_col}; "
+            f"border-radius: 3px; padding: 2px 6px;"
         )
 
     # ── Cleanup ────────────────────────────────────────────────────
@@ -742,7 +787,6 @@ class MainWindow(QMainWindow):
         if self.hotkey_listener:
             self.hotkey_listener.stop()
         event.accept()
-
 
 # ==========================================
 # 6. Entry point
