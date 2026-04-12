@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'Codes/**'
 
 jobs:
   build-release:
@@ -14,29 +16,169 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
-    - name: Install Dependencies
+    - name: Auto-detect and install dependencies from code
+      shell: python
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
+        import ast, os, sys, subprocess, importlib.util
+
+        # Mapping: import name -> PyPI package name (for cases where they differ)
+        IMPORT_TO_PYPI = {
+            "PyQt6": "PyQt6",
+            "cv2": "opencv-python",
+            "PIL": "Pillow",
+            "sklearn": "scikit-learn",
+            "gi": "PyGObject",
+            "bs4": "beautifulsoup4",
+            "yaml": "PyYAML",
+            "attr": "attrs",
+            "dotenv": "python-dotenv",
+            "serial": "pyserial",
+            "usb": "pyusb",
+            "Crypto": "pycryptodome",
+            "lxml": "lxml",
+            "wx": "wxPython",
+            "dns": "dnspython",
+            "engineio": "python-engineio",
+            "socketio": "python-socketio",
+        }
+
+        # Standard library modules to skip (not exhaustive, but covers common ones)
+        STDLIB = set(sys.stdlib_module_names) if hasattr(sys, 'stdlib_module_names') else set()
+        # Fallback for older Python
+        if not STDLIB:
+            STDLIB = {
+                "abc", "aifc", "argparse", "array", "ast", "asynchat", "asyncio",
+                "asyncore", "atexit", "base64", "bdb", "binascii", "binhex",
+                "bisect", "builtins", "bz2", "calendar", "cgi", "cgitb", "chunk",
+                "cmath", "cmd", "code", "codecs", "codeop", "collections",
+                "colorsys", "compileall", "concurrent", "configparser", "contextlib",
+                "contextvars", "copy", "copyreg", "cProfile", "crypt", "csv",
+                "ctypes", "curses", "dataclasses", "datetime", "dbm", "decimal",
+                "difflib", "dis", "distutils", "doctest", "email", "encodings",
+                "enum", "errno", "faulthandler", "fcntl", "filecmp", "fileinput",
+                "fnmatch", "fractions", "ftplib", "functools", "gc", "getopt",
+                "getpass", "gettext", "glob", "grp", "gzip", "hashlib", "heapq",
+                "hmac", "html", "http", "idlelib", "imaplib", "imghdr", "imp",
+                "importlib", "inspect", "io", "ipaddress", "itertools", "json",
+                "keyword", "lib2to3", "linecache", "locale", "logging", "lzma",
+                "mailbox", "mailcap", "marshal", "math", "mimetypes", "mmap",
+                "modulefinder", "multiprocessing", "netrc", "nis", "nntplib",
+                "numbers", "operator", "optparse", "os", "ossaudiodev",
+                "pathlib", "pdb", "pickle", "pickletools", "pipes", "pkgutil",
+                "platform", "plistlib", "poplib", "posix", "posixpath", "pprint",
+                "profile", "pstats", "pty", "pwd", "py_compile", "pyclbr",
+                "pydoc", "queue", "quopri", "random", "re", "readline", "reprlib",
+                "resource", "rlcompleter", "runpy", "sched", "secrets", "select",
+                "selectors", "shelve", "shlex", "shutil", "signal", "site",
+                "smtpd", "smtplib", "sndhdr", "socket", "socketserver", "sqlite3",
+                "ssl", "stat", "statistics", "string", "stringprep", "struct",
+                "subprocess", "sunau", "symtable", "sys", "sysconfig", "syslog",
+                "tabnanny", "tarfile", "telnetlib", "tempfile", "termios", "test",
+                "textwrap", "threading", "time", "timeit", "tkinter", "token",
+                "tokenize", "tomllib", "trace", "traceback", "tracemalloc",
+                "tty", "turtle", "turtledemo", "types", "typing", "unicodedata",
+                "unittest", "urllib", "uu", "uuid", "venv", "warnings", "wave",
+                "weakref", "webbrowser", "winreg", "winsound", "wsgiref",
+                "xdrlib", "xml", "xmlrpc", "zipapp", "zipfile", "zipimport",
+                "zlib", "_thread", "__future__",
+            }
+
+        codes_dir = "Codes"
+        third_party = set()
+
+        for filename in os.listdir(codes_dir):
+            if not filename.endswith(".py"):
+                continue
+            filepath = os.path.join(codes_dir, filename)
+            with open(filepath, "r", encoding="utf-8") as f:
+                try:
+                    tree = ast.parse(f.read(), filename=filepath)
+                except SyntaxError:
+                    print(f"⚠️  Skipping {filepath} (syntax error)")
+                    continue
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        top = alias.name.split(".")[0]
+                        third_party.add(top)
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module:
+                        top = node.module.split(".")[0]
+                        third_party.add(top)
+
+        # Filter out standard library modules
+        third_party -= STDLIB
+
+        # Convert import names to PyPI package names
+        packages = set()
+        for mod in sorted(third_party):
+            pypi_name = IMPORT_TO_PYPI.get(mod, mod)
+            packages.add(pypi_name)
+
+        # Always include pyinstaller for building
+        packages.add("pyinstaller")
+
+        print("=" * 50)
+        print("📦 Detected third-party packages:")
+        for pkg in sorted(packages):
+            print(f"   • {pkg}")
+        print("=" * 50)
+
+        # Install all detected packages
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "pip"]
+        )
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install"] + sorted(packages)
+        )
+        print("✅ All dependencies installed successfully!")
+
     - name: Build all EXEs in Codes/
       run: |
         foreach ($f in Get-ChildItem -Path Codes -Filter *.py) {
-          pyinstaller --onefile --windowed --distpath dist --hidden-import=flask --hidden-import=werkzeug --hidden-import=socket --hidden-import=engineio --hidden-import=socketio "$($f.FullName)"
+          Write-Host "🔨 Building: $($f.Name)"
+          pyinstaller --onefile --windowed --distpath dist --name "$($f.BaseName)" "$($f.FullName)"
         }
-        
+        Write-Host "✅ All EXEs built successfully!"
+
+    - name: Generate release tag
+      id: tag
+      shell: bash
+      run: |
+        TAG="v1.0.${{ github.run_number }}"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "📌 Release tag: $TAG"
+
+    - name: Generate release body
+      id: body
+      shell: bash
+      run: |
+        echo "## 📦 Included Applications" > release_notes.md
+        echo "" >> release_notes.md
+        for exe in dist/*.exe; do
+          name=$(basename "$exe" .exe)
+          echo "- **${name}**" >> release_notes.md
+        done
+        echo "" >> release_notes.md
+        echo "---" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "_Built automatically from \`Codes/\` on $(date -u '+%Y-%m-%d %H:%M UTC')_" >> release_notes.md
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: Release ${{ steps.tag.outputs.tag }}
+        body_path: release_notes.md
         files: dist/*.exe
-        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

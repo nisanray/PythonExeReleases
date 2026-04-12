@@ -1,24 +1,19 @@
 # Python to EXE Release Repository
 
-This repository contains Python applications that are automatically converted to Windows executables using GitHub Actions. The repository features automated CI/CD pipeline that builds and releases executable files for easy distribution.
+This repository contains Python applications that are automatically converted to Windows executables using GitHub Actions. The CI/CD pipeline automatically detects all third-party libraries from the source code, builds standalone EXEs, and creates a new GitHub release — no manual dependency management needed.
 
 ## Applications
 
-
-### LAN Share (File Upload Server)
-A cross-platform local file sharing server with a modern web interface and a PyQt6 GUI for easy control. Allows uploading files from any device on the same network to your computer via a browser.
+### 🖥️ Internet Speed Meter
+A floating, draggable overlay that displays real-time internet upload and download speeds on Windows.
 
 **Features:**
-- Drag-and-drop or select files to upload from any device on the LAN
-- Modern, responsive web interface for uploads
-- PyQt6 desktop GUI to start/stop the server, set upload folder, and view logs
-- Customizable upload folder location
-- Displays LAN IP and server URL for easy access
-- All files saved with unique names to prevent overwrites
-- Works on Windows, macOS, and Linux
+- Minimal, always-on-top overlay window
+- Real-time download and upload speed display
+- Draggable and closable interface
+- Uses PyQt6 for GUI and psutil for network statistics
 
-
-### Lock Scheduler GUI
+### 🔒 Lock Scheduler GUI
 A Windows desktop application that provides automated system lock functionality with multiple scheduling options and mouse-triggered locking capabilities.
 
 **Features:**
@@ -30,16 +25,29 @@ A Windows desktop application that provides automated system lock functionality 
 - Modern tabbed interface built with PyQt6
 - Real-time current time display and professional Windows 11-inspired design
 
-### Internet Speed Meter
-A floating, draggable overlay that displays real-time internet upload and download speeds on Windows.
+### 📂 LAN Share (File Upload Server)
+A cross-platform local file sharing server with a modern web interface and a PyQt6 GUI for easy control. Allows uploading files from any device on the same network to your computer via a browser.
 
 **Features:**
-- Minimal, always-on-top overlay window
-- Real-time download and upload speed display
-- Draggable and closable interface
-- Uses PyQt6 for GUI and psutil for network statistics
+- Drag-and-drop or select files to upload from any device on the LAN
+- Modern, responsive web interface for uploads
+- PyQt6 desktop GUI to start/stop the server, set upload folder, and view logs
+- Customizable upload folder location
+- Displays LAN IP and server URL for easy access
+- All files saved with unique names to prevent overwrites
+- Works on Windows, macOS, and Linux
 
-### YouTube Video Downloader
+### 💬 LAN Chat & File Share
+A comprehensive LAN messenger and file sharing tool. It combines a Flask-based web server for browser-based chatting/file sharing with a PyQt6 desktop admin interface.
+
+**Features:**
+- **Local Chat**: Browser-based chat accessible from any device on the network
+- **File Sharing**: Easy file upload and download via the web interface
+- **Admin GUI**: Desktop application to monitor logs, broadcast admin messages, and manage the server
+- **Mobile Connect**: Generates a QR code for easy mobile connection
+- **Video/Image Preview**: In-chat previews for shared media
+
+### 🎬 YouTube Video Downloader
 A desktop tool to download YouTube videos or audio with quick presets and progress tracking.
 
 **Features:**
@@ -48,45 +56,48 @@ A desktop tool to download YouTube videos or audio with quick presets and progre
 - Estimated size display plus live download progress bar
 - Selectable download directory with recent path recall and logging
 
-### LAN Chat & File Share
-A comprehensive LAN messenger and file sharing tool. It combines a Flask-based web server for browser-based chatting/file sharing with a PyQt6 desktop admin interface.
+### 🤖 Facebook Unsave Automation Bot
+An advanced image-based automation bot with a PyQt6 GUI. Uses screen image recognition to automate repetitive two-step click workflows (e.g., unsaving Facebook posts).
 
 **Features:**
-- **Local Chat**: Browser-based chat accessible from any device on the network.
-- **File Sharing**: Easy file upload and download via the web interface.
-- **Admin GUI**: Desktop application to monitor logs, broadcast admin messages, and manage the server.
-- **Mobile Connect**: Generates a QR code for easy mobile connection.
-- **Video/Image Preview**: In-chat previews for shared media.
+- Two-target image recognition with configurable actions (click, right-click, double-click, hover)
+- Per-target X/Y offset controls for precise coordinate tuning
+- Configurable timing: initial delay, inter-step delay, cycle delay, and search timeout
+- Adjustable match confidence for image recognition accuracy
+- **Humanize Mode**: Randomizes delays by ±20% to mimic natural behavior
+- Max cycle limiter and per-image search timeout
+- **F9 hotkey** for emergency stop plus PyAutoGUI fail-safe (move mouse to corner)
+- Full execution logging with real-time console output
 
 ## Repository Structure
 
 ```
-PythonToEXERelease/
+PythonExeReleases/
 ├── .github/
 │   └── workflows/
-│       └── build_and_release.yml    # GitHub Actions workflow for automated builds
+│       └── build_and_release.yml    # GitHub Actions workflow (auto-detect deps & build)
 ├── Codes/
-│   └── lock_scheduler_gui.py        # Lock Scheduler application source code
-│   └── lan_share.py                # LAN Share (file upload server) source code
-│   └── lan_chat_file_share.py      # LAN Chat & File Share source code
-│   └── yt_download.py              # YouTube Video Downloader source code
-├── Internet_Speed_Meter.py          # Internet Speed Meter overlay source code
-├── requirements.txt                 # Python dependencies
-├── README.md                       # This file
-└── .gitignore                      # Git ignore patterns
+│   ├── Internet_Speed_Meter.py      # Internet Speed Meter overlay
+│   ├── lan_chat_file_share.py       # LAN Chat & File Share
+│   ├── lan_share.py                 # LAN Share (file upload server)
+│   ├── lock_scheduler_gui.py        # Lock Scheduler application
+│   ├── unsave_facebook.py           # Facebook Unsave Automation Bot
+│   └── yt_download.py               # YouTube Video Downloader
+├── Readme.md                        # This file
+└── .gitignore                       # Git ignore patterns
 ```
 
 ## Automated Build Process
 
 This repository uses GitHub Actions to automatically:
 
-1. **Build Process**: Converts Python scripts to Windows executables using PyInstaller
-2. **Release Creation**: Creates GitHub releases with version tags
-3. **Asset Upload**: Uploads built EXE files to releases for easy download
-4. **Documentation**: Updates README with download links
+1. **Detect Dependencies**: Scans all Python files in `Codes/` using AST parsing to extract third-party imports — no `requirements.txt` needed
+2. **Install Packages**: Maps import names to PyPI packages and installs them automatically
+3. **Build Executables**: Converts each Python script to a standalone Windows EXE using PyInstaller
+4. **Create Release**: Creates a GitHub release with version tag and uploads all EXE files
 
 ### Workflow Triggers
-- Builds are triggered on pushes to the `main` branch
+- Builds are triggered only when files in `Codes/` are pushed to the `master` branch
 - Each build creates a new release with incrementing version numbers
 - Executables are built on Windows environment using Python 3.11
 
@@ -101,62 +112,43 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - **📖 [Repository](../../)** - View source code
 - **🐛 [Issues](../../issues)** - Report bugs or request features
 
-
 ### Direct Download Links (Latest Release)
+- [Internet_Speed_Meter.exe](../../releases/latest/download/Internet_Speed_Meter.exe) - Internet Speed Meter Overlay
 - [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
 - [lan_share.exe](../../releases/latest/download/lan_share.exe) - LAN Share (File Upload Server)
 - [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
 - [yt_download.exe](../../releases/latest/download/yt_download.exe) - YouTube Video Downloader
+- [unsave_facebook.exe](../../releases/latest/download/unsave_facebook.exe) - Facebook Unsave Automation Bot
 
 > **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
-
-## Dependencies
-
-- **PyQt6**: Modern GUI framework for desktop applications
-- **pyinstaller**: Tool for converting Python applications to executables
-- **psutil**: Cross-platform library for retrieving information on running processes and system utilization (used by Internet Speed Meter)
-
-- **Flask**: Lightweight web framework for the LAN Share server
-- **Werkzeug**: WSGI utility library used by Flask
-- **yt-dlp**: YouTube video/audio download backend used by the downloader
 
 ## Getting Started
 
 ### For Users (Download & Run)
 1. Visit the [Releases page](../../releases/latest)
-2. Download the latest `lock_scheduler_gui.exe`
+2. Download the desired `.exe` file
 3. Run the executable (no installation required)
 
-### For Developers (Setup Repository)
-1. Create a new repository on GitHub named `PythonToEXERelease`
-2. Add the remote to your local repository:
-   ```bash
-   git remote add origin https://github.com/YOUR_USERNAME/PythonToEXERelease.git
-   ```
-3. Push to GitHub:
-   ```bash
-   git push -u origin main
-   ```
-4. GitHub Actions will automatically build and create the first release
-
-## Development Setup
-
+### For Developers (Run from Source)
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd PythonToEXERelease
+   cd PythonExeReleases
    ```
 
-2. Install dependencies:
+2. Install dependencies (pick what you need):
    ```bash
-   pip install -r requirements.txt
+   pip install PyQt6 psutil flask werkzeug qrcode Pillow yt-dlp pyautogui pynput
    ```
 
-3. Run applications locally:
+3. Run any application:
    ```bash
+   python Codes/Internet_Speed_Meter.py
    python Codes/lock_scheduler_gui.py
    python Codes/lan_share.py
+   python Codes/lan_chat_file_share.py
    python Codes/yt_download.py
+   python Codes/unsave_facebook.py
    ```
 
 ## Manual Build
@@ -164,10 +156,13 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 To manually build executables:
 
 ```bash
+pip install pyinstaller
+pyinstaller --onefile --windowed Codes/Internet_Speed_Meter.py
 pyinstaller --onefile --windowed Codes/lock_scheduler_gui.py
 pyinstaller --onefile --windowed Codes/lan_share.py
 pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
 pyinstaller --onefile --windowed Codes/yt_download.py
+pyinstaller --onefile --windowed Codes/unsave_facebook.py
 ```
 
 ## System Requirements
@@ -175,23 +170,26 @@ pyinstaller --onefile --windowed Codes/yt_download.py
 - **For Development**: Python 3.7+ and dependencies
 - **For Executables**: Windows operating system only
 - **For Lock Scheduler**: Administrator privileges may be required for system locking functionality
+- **For Unsave Bot**: Requires screen image files for target recognition
 
 ## CI/CD Pipeline Features
 
+- **Zero-Config Dependencies**: Automatically detects imports from source code via AST parsing
+- **Smart Package Mapping**: Handles import-to-PyPI name differences (e.g., `PIL` → `Pillow`)
 - **Cross-platform Building**: Uses GitHub-hosted Windows runners
 - **Automated Versioning**: Incremental release numbering
 - **Asset Management**: Automatic upload of built executables
-- **Documentation Updates**: Automated README updates with download links
-
-## Security Notice
-
-The Lock Scheduler application uses Windows system APIs to lock the workstation. Ensure you have proper permissions and use responsibly.
+- **Change-based Triggers**: Only rebuilds when code in `Codes/` changes
 
 ## Contributing
 
-1. Add Python scripts to the `Codes/` directory
-2. Update `requirements.txt` if new dependencies are needed
-3. Push to main branch to trigger automated build and release
+1. Add your Python script to the `Codes/` directory
+2. Push to `master` — dependencies are detected automatically, no manual config needed
+3. GitHub Actions will build the EXE and create a release
+
+## Security Notice
+
+The Lock Scheduler application uses Windows system APIs to lock the workstation. The Unsave Bot uses screen automation (PyAutoGUI) — use responsibly and ensure you have proper permissions.
 
 ## License
 

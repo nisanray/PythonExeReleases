@@ -1,8 +1,0 @@
-PyQt6
-pyinstaller
-psutil
-Flask
-Werkzeug
-qrcode
-Pillow
-yt-dlp
