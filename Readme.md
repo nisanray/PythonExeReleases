@@ -56,6 +56,16 @@ A desktop tool to download YouTube videos or audio with quick presets and progre
 - Estimated size display plus live download progress bar
 - Selectable download directory with recent path recall and logging
 
+### 🚀 PyCHS Automation Builder (V6 STABLE)
+A high-performance visual automation engine. Build, manage, and execute complex workflows without code using basic inputs and advanced computer vision.
+
+**Features:**
+- **Visual Sequence Editor**: Add, reorder, and duplicate steps with a drag-and-drop interface.
+- **Intelligent Vision**: Image recognition for clicking elements even when coordinates change.
+- **Python Integration**: Run custom mini-snippets directly within your automation flow.
+- **V6 Stabilization**: Improved signal handling, emergency stop (F12), and comprehensive built-in documentation.
+- **Cross-Platform**: Designed for Windows but built with portable logic for future expansions.
+
 ### 🤖 Facebook Unsave Automation Bot
 An advanced image-based automation bot with a PyQt6 GUI. Uses screen image recognition to automate repetitive two-step click workflows (e.g., unsaving Facebook posts).
 
@@ -89,6 +99,7 @@ PythonExeReleases/
 │       └── build_and_release.yml    # GitHub Actions workflow (auto-detect deps & build)
 ├── Codes/
 │   ├── Internet_Speed_Meter.py      # Internet Speed Meter overlay
+│   ├── automation_builder.py        # PyCHS Automation Builder (V6)
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
 │   ├── lan_share.py                 # LAN Share (file upload server)
 │   ├── lock_scheduler_gui.py        # Lock Scheduler application
@@ -126,6 +137,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 
 ### Direct Download Links (Latest Release)
 - [Internet_Speed_Meter.exe](../../releases/latest/download/Internet_Speed_Meter.exe) - Internet Speed Meter Overlay
+- [automation_builder.exe](../../releases/latest/download/automation_builder.exe) - PyCHS Automation Builder
 - [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
 - [lan_share.exe](../../releases/latest/download/lan_share.exe) - LAN Share (File Upload Server)
 - [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
@@ -155,15 +167,16 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
    ```
 
 3. Run any application:
-   ```bash
-   python Codes/Internet_Speed_Meter.py
-   python Codes/lock_scheduler_gui.py
-   python Codes/lan_share.py
-   python Codes/lan_chat_file_share.py
-   python Codes/yt_download.py
-   python Codes/unsave_facebook.py
-   python Codes/powerflow_advanced_system_manager.py
-   ```
+    ```bash
+    python Codes/Internet_Speed_Meter.py
+    python Codes/automation_builder.py
+    python Codes/lock_scheduler_gui.py
+    python Codes/lan_share.py
+    python Codes/lan_chat_file_share.py
+    python Codes/yt_download.py
+    python Codes/unsave_facebook.py
+    python Codes/powerflow_advanced_system_manager.py
+    ```
 
 ## Manual Build
 
@@ -172,6 +185,7 @@ To manually build executables:
 ```bash
 pip install pyinstaller
 pyinstaller --onefile --windowed Codes/Internet_Speed_Meter.py
+pyinstaller --onefile --windowed Codes/automation_builder.py
 pyinstaller --onefile --windowed Codes/lock_scheduler_gui.py
 pyinstaller --onefile --windowed Codes/lan_share.py
 pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
