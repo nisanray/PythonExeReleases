@@ -22,6 +22,7 @@ A Windows desktop application that provides automated system lock functionality 
 - **Quick Lock**: Pre-configured quick lock options (1 min, 5 min, 15 min, 30 min, 1 hour)
 - **Immediate Lock**: Lock system immediately with confirmation
 - **Mouse Movement Lock**: Lock system when mouse movement is detected after an activation delay
+- **Internet Loss Lock**: NEW - Monitors connectivity and locks the system if the internet is lost (Standalone or Integrated)
 - Modern tabbed interface built with PyQt6
 - Real-time current time display and professional Windows 11-inspired design
 

@@ -1,10 +1,11 @@
 import sys
 import ctypes
+import socket
 from datetime import datetime, timedelta
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QTimeEdit, 
                              QSpinBox, QTabWidget, QGroupBox, QListWidget,
-                             QMessageBox, QFrame)
+                             QMessageBox, QFrame, QCheckBox)
 from PyQt6.QtCore import QTimer, QTime, Qt
 from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QCursor
 
@@ -25,6 +26,12 @@ class LockScheduler(QMainWindow):
         self.mouse_activation_timer = QTimer(self)
         self.mouse_activation_timer.setSingleShot(True)
         self.mouse_activation_timer.timeout.connect(self.start_mouse_monitoring)
+
+        # Internet monitoring
+        self.internet_timer = QTimer(self)
+        self.internet_timer.timeout.connect(self.check_internet_status)
+        self.is_internet_monitoring = False
+        self.failed_internet_checks = 0
         
     def init_ui(self):
         self.setWindowTitle("Lock Scheduler")
@@ -183,6 +190,10 @@ class LockScheduler(QMainWindow):
         time_row.addStretch()
         group1_layout.addLayout(time_row)
         
+        self.check_int_tab1 = QCheckBox("Also lock if Internet is lost")
+        self.check_int_tab1.setStyleSheet("font-size: 10px; color: #666666;")
+        group1_layout.addWidget(self.check_int_tab1)
+
         btn1 = QPushButton("Schedule")
         btn1.clicked.connect(self.schedule_at_time)
         group1_layout.addWidget(btn1)
@@ -228,6 +239,10 @@ class LockScheduler(QMainWindow):
         hours_row.addStretch()
         group2_layout.addLayout(hours_row)
         
+        self.check_int_tab2 = QCheckBox("Also lock if Internet is lost")
+        self.check_int_tab2.setStyleSheet("font-size: 10px; color: #666666;")
+        group2_layout.addWidget(self.check_int_tab2)
+
         btn2 = QPushButton("Schedule")
         btn2.clicked.connect(self.schedule_after_duration)
         group2_layout.addWidget(btn2)
@@ -302,6 +317,10 @@ class LockScheduler(QMainWindow):
         self.mouse_delay_spin.setValue(5)
         delay_layout.addWidget(self.mouse_delay_spin)
         group4_layout.addLayout(delay_layout)
+ 
+        self.check_int_tab4 = QCheckBox("Also lock if Internet is lost")
+        self.check_int_tab4.setStyleSheet("font-size: 10px; color: #666666;")
+        group4_layout.addWidget(self.check_int_tab4)
 
         self.mouse_lock_status = QLabel("Status: Inactive")
         group4_layout.addWidget(self.mouse_lock_status)
@@ -316,6 +335,41 @@ class LockScheduler(QMainWindow):
         tab4_layout.addStretch()
         
         tabs.addTab(tab4, "Mouse Lock")
+        
+        # Tab 5: Internet Lock
+        tab5 = QWidget()
+        tab5_layout = QVBoxLayout(tab5)
+        tab5_layout.setSpacing(6)
+        tab5_layout.setContentsMargins(8, 8, 8, 8)
+
+        group5 = QGroupBox("Lock on Internet Loss")
+        group5_layout = QVBoxLayout()
+        group5_layout.setSpacing(10)
+        group5_layout.setContentsMargins(8, 8, 8, 8)
+
+        desc_label = QLabel("Locks the device immediately if internet connection is lost.\n"
+                            "Interval: 1s | Grace: 2s")
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("color: #666666; font-style: italic;")
+        group5_layout.addWidget(desc_label)
+
+        self.internet_lock_status = QLabel("Status: Inactive")
+        self.internet_lock_status.setStyleSheet("font-weight: bold;")
+        group5_layout.addWidget(self.internet_lock_status)
+
+        self.internet_conn_label = QLabel("Connection: Checking...")
+        group5_layout.addWidget(self.internet_conn_label)
+
+        self.toggle_internet_lock_btn = QPushButton("Activate Internet Lock")
+        self.toggle_internet_lock_btn.setCheckable(True)
+        self.toggle_internet_lock_btn.clicked.connect(self.toggle_internet_lock)
+        group5_layout.addWidget(self.toggle_internet_lock_btn)
+
+        group5.setLayout(group5_layout)
+        tab5_layout.addWidget(group5)
+        tab5_layout.addStretch()
+
+        tabs.addTab(tab5, "Internet Lock")
         
         # Scheduled locks list - Compact
         group_list = QGroupBox("Scheduled Locks")
@@ -372,6 +426,10 @@ class LockScheduler(QMainWindow):
         timer.timeout.connect(self.lock_device)
         timer.start(int(delta * 1000))
         
+        if self.check_int_tab1.isChecked():
+            self.toggle_internet_lock_btn.setChecked(True)
+            self.toggle_internet_lock()
+
         self.timers.append(timer)
         lock_info = f"🕐 {target.strftime('%I:%M:%S %p')} - Specific Time"
         self.lock_list.addItem(lock_info)
@@ -402,6 +460,12 @@ class LockScheduler(QMainWindow):
         timer.timeout.connect(self.lock_device)
         timer.start(secs * 1000)
         
+        # Check from tab 2 or Quick buttons
+        should_int_lock = self.check_int_tab2.isChecked()
+        if should_int_lock:
+            self.toggle_internet_lock_btn.setChecked(True)
+            self.toggle_internet_lock()
+
         lock_time = datetime.now() + timedelta(seconds=secs)
         
         self.timers.append(timer)
@@ -446,6 +510,10 @@ class LockScheduler(QMainWindow):
                 self.mouse_delay_spin.setEnabled(False)
             else:
                 self.start_mouse_monitoring()
+            
+            if self.check_int_tab4.isChecked():
+                self.toggle_internet_lock_btn.setChecked(True)
+                self.toggle_internet_lock()
         else:
             self.mouse_activation_timer.stop()
             self.is_mouse_monitoring = False
@@ -471,6 +539,49 @@ class LockScheduler(QMainWindow):
                 self.lock_device()
                 self.toggle_mouse_lock_btn.setChecked(False)
                 self.toggle_mouse_lock() # Reset the button and status
+
+    def is_internet_available(self):
+        try:
+            # Try to connect to Google DNS
+            socket.create_connection(("8.8.8.8", 53), timeout=1)
+            return True
+        except (socket.timeout, socket.error):
+            return False
+
+    def toggle_internet_lock(self):
+        if self.toggle_internet_lock_btn.isChecked():
+            self.is_internet_monitoring = True
+            self.failed_internet_checks = 0
+            self.internet_timer.start(1000) # Check every 1s
+            self.internet_lock_status.setText("Status: Active - Monitoring...")
+            self.toggle_internet_lock_btn.setText("Deactivate Internet Lock")
+        else:
+            self.is_internet_monitoring = False
+            self.internet_timer.stop()
+            self.internet_lock_status.setText("Status: Inactive")
+            self.toggle_internet_lock_btn.setText("Activate Internet Lock")
+            self.internet_conn_label.setText("Connection: Unknown")
+
+    def check_internet_status(self):
+        if not self.is_internet_monitoring:
+            return
+
+        available = self.is_internet_available()
+        
+        if available:
+            self.failed_internet_checks = 0
+            self.internet_conn_label.setText("Connection: Online")
+            self.internet_conn_label.setStyleSheet("color: green;")
+        else:
+            self.failed_internet_checks += 1
+            self.internet_conn_label.setText(f"Connection: Offline ({self.failed_internet_checks}s)")
+            self.internet_conn_label.setStyleSheet("color: red;")
+            
+            if self.failed_internet_checks >= 2: # 2 seconds grace
+                self.lock_device()
+                # Deactivate after successful lock as per user request
+                self.toggle_internet_lock_btn.setChecked(False)
+                self.toggle_internet_lock()
         
 def main():
     app = QApplication(sys.argv)
