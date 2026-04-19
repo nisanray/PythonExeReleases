@@ -98,6 +98,7 @@ A professional eye-care and productivity timer designed to prevent eye strain du
 - **Smart Pomodoro**: Flexible focus and break intervals (20-20-20 rule supported).
 - **Health Overlays**: Full-screen break reminders with white text for better visibility and tip rotation.
 - **Sound Customization**: Support for system beeps or custom audio files (MP3/WAV) for Alerts.
+- **Text-to-Speech**: Offline voice narration for health tips and affirmations during breaks (uses system voice).
 - **After-Break Flow**: Configure the app to auto-restart focus or ask for confirmation.
 - **Deep Analytics**: Track focus hours, streaks, and session history with CSV/JSON export.
 - **Theme Engine**: Multiple premium color palettes and "SF Pro" typography.
