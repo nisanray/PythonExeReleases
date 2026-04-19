@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QTabWidget, QComboBox, QProgressBar, QSlider, QFontComboBox,
     QFileDialog, QMessageBox, QGroupBox, QListWidgetItem
 )
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint, QUrl
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint, QUrl, QEvent
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush, QShortcut, QKeySequence, QCursor
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 
@@ -1099,6 +1099,9 @@ class DevEyeApp(QMainWindow):
         self.idle_timer = QTimer()
         self.idle_timer.timeout.connect(self.check_idle)
         self.idle_timer.start(60000) # Check every 1 minute
+        
+        # Install event filter for keyboard activity detection
+        QApplication.instance().installEventFilter(self)
 
         if not self.data["settings"].get("startup_minimized", False):
             self.prompt_label_and_start()
@@ -1121,6 +1124,28 @@ class DevEyeApp(QMainWindow):
             self.data["stats"]["streak"] = 1
         self.data["stats"]["last_date"] = today
         DataManager.save(self.data)
+
+    def eventFilter(self, obj, event):
+        # Detect keyboard activity to reset idle timer
+        if event.type() == QEvent.Type.KeyPress:
+            if self.data["settings"].get("idle_detection", False):
+                self.idle_minutes = 0
+                # Trigger activity prompt if paused by idle
+                if self.paused_by_idle and self.is_paused and self.current_phase == "focus":
+                    msg = QMessageBox(self)
+                    msg.setWindowTitle("You're back")
+                    msg.setText("Activity detected. What would you like to do?")
+                    resume_btn = msg.addButton("Resume", QMessageBox.ButtonRole.AcceptRole)
+                    start_new_btn = msg.addButton("Start New", QMessageBox.ButtonRole.DestructiveRole)
+                    msg.exec()
+
+                    if msg.clickedButton() == start_new_btn:
+                        self.record_partial_focus_before_restart()
+                        self.paused_by_idle = False
+                        self.reset_timer(user_triggered=True)
+                    elif msg.clickedButton() == resume_btn:
+                        self.toggle_pause()
+        return super().eventFilter(obj, event)
 
     def check_idle(self):
         current_pos = QCursor.pos()
