@@ -96,7 +96,9 @@ A professional eye-care and productivity timer designed to prevent eye strain du
 
 **Features:**
 - **Smart Pomodoro**: Flexible focus and break intervals (20-20-20 rule supported).
-- **Health Overlays**: Full-screen break reminders with eye exercises and motivational tips.
+- **Health Overlays**: Full-screen break reminders with white text for better visibility and tip rotation.
+- **Sound Customization**: Support for system beeps or custom audio files (MP3/WAV) for Alerts.
+- **After-Break Flow**: Configure the app to auto-restart focus or ask for confirmation.
 - **Deep Analytics**: Track focus hours, streaks, and session history with CSV/JSON export.
 - **Theme Engine**: Multiple premium color palettes and "SF Pro" typography.
 - **Mini Player & Tray**: Stay focused with a minimal floating timer or background operation.
@@ -207,6 +209,7 @@ pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
 pyinstaller --onefile --windowed Codes/yt_download.py
 pyinstaller --onefile --windowed Codes/unsave_facebook.py
 pyinstaller --onefile --windowed Codes/powerflow_advanced_system_manager.py
+pyinstaller --onefile --windowed Codes/deveye_ultimate.py
 ```
 
 ## System Requirements

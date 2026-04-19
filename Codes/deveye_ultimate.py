@@ -4,6 +4,10 @@ import os
 import csv
 import random
 from datetime import datetime, date, timedelta
+try:
+    import winsound
+except ImportError:
+    winsound = None
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QLineEdit,
     QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu, 
@@ -12,8 +16,9 @@ from PyQt6.QtWidgets import (
     QTabWidget, QComboBox, QProgressBar, QSlider, QFontComboBox,
     QFileDialog, QMessageBox, QGroupBox, QListWidgetItem
 )
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint, QUrl
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush, QShortcut, QKeySequence, QCursor
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 DATA_FILE = "deveye_data.json"
 
@@ -79,6 +84,10 @@ def resolve_mini_bg_color(choice, accent_color):
     return color_value
 
 
+def resolve_mini_text_color(choice):
+    return "#FFFFFF" if choice in ("Theme Accent", "Midnight") else TEXT_PRIMARY
+
+
 def get_stylesheet(accent_color, accent_hover, font_family="Segoe UI", font_size=13,
                    mini_bg_choice="Theme Surface"):
     try:
@@ -107,7 +116,7 @@ def get_stylesheet(accent_color, accent_hover, font_family="Segoe UI", font_size
     QListWidget::item {{ padding: 10px 8px; border-radius: 10px; }}
     QListWidget::item:selected {{ background-color: rgba(0, 113, 227, 0.10); border-radius: 10px; color: {TEXT_PRIMARY}; }}
 
-    QPushButton {{ background-color: rgba(255, 255, 255, 0.96); border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 16px; padding: 8px 14px; color: {TEXT_PRIMARY}; font-weight: 600; min-height: 38px; }}
+    QPushButton {{ background-color: rgba(255, 255, 255, 0.96); border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 16px; padding: 10px 16px; color: {TEXT_PRIMARY}; font-weight: 600; min-height: 40px; }}
     QPushButton:hover {{ background-color: rgba(255, 255, 255, 1.0); border: 1px solid rgba(0, 0, 0, 0.12); }}
     QPushButton:disabled {{ background-color: rgba(255, 255, 255, 0.6); color: #B0B0B5; border: 1px solid rgba(0, 0, 0, 0.06); }}
     
@@ -116,18 +125,20 @@ def get_stylesheet(accent_color, accent_hover, font_family="Segoe UI", font_size
     QPushButton#DangerButton {{ background-color: transparent; border: 1px solid rgba(255, 59, 48, 0.35); color: {DANGER_COLOR}; }}
     QPushButton#DangerButton:hover {{ background-color: rgba(255, 59, 48, 0.08); }}
     
-    QPushButton#MiniBtn {{ border-radius: 999px; padding: 0; min-width: 26px; min-height: 26px; background-color: rgba(255, 255, 255, 0.96); border: 1px solid rgba(0, 0, 0, 0.08); font-size: 12px; }}
-    QPushButton#MiniBtn:hover {{ background-color: rgba(255, 255, 255, 1.0); color: {accent_color}; border: 1px solid rgba(0, 0, 0, 0.12); }}
+    QPushButton#MiniBtn {{ border-radius: 999px; padding: 0 8px; min-width: 44px; min-height: 28px; background-color: transparent; border: 1px solid transparent; font-size: 11px; color: {resolve_mini_text_color(mini_bg_choice)}; }}
+    QPushButton#MiniBtn:hover {{ background-color: rgba(255, 255, 255, 0.12); color: {resolve_mini_text_color(mini_bg_choice)}; border: 1px solid rgba(255, 255, 255, 0.18); }}
     QFrame#MiniPlayerFrame {{ background-color: {mini_bg_color}; border-radius: 20px; border: 1px solid rgba(0, 0, 0, 0.08); }}
+    QLabel#MiniTimeLabel {{ background-color: transparent; border: none; padding: 0; margin: 0; color: {resolve_mini_text_color(mini_bg_choice)}; font-size: 15px; font-weight: 700; }}
+    QLabel#MiniPhaseDot {{ background-color: transparent; border: none; padding: 0; margin: 0; font-size: 10px; color: #10B981; }}
     
     QTabWidget::pane {{ border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 18px; background-color: rgba(255, 255, 255, 0.90); top: -1px; }}
     QTabBar::tab {{ background: {BG_COLOR}; color: {TEXT_MUTED}; padding: 8px 16px; border: 1px solid transparent; border-top-left-radius: 14px; border-top-right-radius: 14px; font-weight: 600; }}
     QTabBar::tab:selected {{ color: {accent_color}; border: 1px solid rgba(0, 0, 0, 0.08); border-bottom-color: rgba(255, 255, 255, 0.90); background: rgba(255, 255, 255, 0.90); }}
     
-    QSpinBox, QComboBox {{ background-color: rgba(255, 255, 255, 0.96); border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; padding: 6px 10px; color: {TEXT_PRIMARY}; }}
+    QSpinBox, QComboBox {{ background-color: rgba(255, 255, 255, 0.98); border: 1px solid rgba(0, 0, 0, 0.10); border-radius: 12px; padding: 8px 12px; color: {TEXT_PRIMARY}; min-height: 38px; }}
     QSpinBox::up-button, QSpinBox::down-button {{ width: 0px; }}
     
-    QCheckBox {{ color: {TEXT_PRIMARY}; spacing: 12px; }}
+    QCheckBox {{ color: {TEXT_PRIMARY}; spacing: 12px; font-size: 12px; }}
     QCheckBox::indicator {{ width: 34px; height: 18px; border-radius: 9px; border: 2px solid rgba(0, 0, 0, 0.16); background-color: #FFFFFF; }}
     QCheckBox::indicator:checked {{ background-color: {accent_color}; border: 2px solid {accent_color}; }}
     
@@ -141,10 +152,13 @@ def get_stylesheet(accent_color, accent_hover, font_family="Segoe UI", font_size
 def get_overlay_style(opacity_pct):
     alpha = int((opacity_pct / 100.0) * 255)
     return f"""
-    QWidget {{ background-color: rgba(18, 18, 20, {alpha}); color: #FFFFFF; }}
-    QLabel#OverlayTitle {{ font-size: 42px; font-weight: 700; letter-spacing: -0.8px; color: #FFFFFF; }}
-    QLabel#OverlaySub {{ font-size: 20px; color: rgba(255, 255, 255, 0.85); font-weight: 400; }}
-    QLabel#OverlayAffirm {{ font-size: 16px; color: rgba(255, 255, 255, 0.95); font-weight: 500; }}
+    QWidget {{ background-color: rgba(10, 10, 12, {alpha}); color: #FFFFFF; }}
+    QFrame#OverlayPanel {{ background-color: rgba(0, 0, 0, 0.98); border: none; border-radius: 30px; }}
+    QFrame#OverlayPanel QLabel {{ color: #FFFFFF; background-color: transparent; }}
+    QLabel#OverlayTitle {{ font-size: 42px; font-weight: 700; letter-spacing: -0.8px; }}
+    QLabel#OverlaySub {{ font-size: 20px; font-weight: 400; }}
+    QLabel#OverlayAffirm {{ font-size: 16px; font-weight: 500; }}
+    QLabel#OverlaySession {{ font-size: 13px; }}
     """
 
 # ================== DATA MANAGER ==================
@@ -170,7 +184,10 @@ class DataManager:
                 "font_family": "Segoe UI", "font_size": 13,
                 "custom_break_msg": "", "show_affirmations": True, "show_eye_tips": True,
                 "startup_minimized": False, "idle_detection": False, "idle_threshold_mins": 5,
-                "show_session_label": True
+                "show_session_label": True,
+                "after_break_flow": "Auto Restart",
+                "sound_mode": "System Beep",
+                "custom_sound_file": ""
             }
         }
 
@@ -243,6 +260,7 @@ class CircularProgress(QWidget):
         self.current_value = 100
         self.text = ""
         self.accent_color = accent_color
+        self.text_color = TEXT_PRIMARY
 
     def set_values(self, current, maximum, text):
         self.current_value = current
@@ -270,9 +288,9 @@ class CircularProgress(QWidget):
             painter.setPen(pen_fg)
             painter.drawArc(rect, 90 * 16, span_angle)
 
-        painter.setPen(QPen(QColor("#FFFFFF")))
+        painter.setPen(QPen(QColor(self.text_color)))
         font = painter.font()
-        font.setPixelSize(48)
+        font.setPixelSize(42)
         font.setBold(True)
         painter.setFont(font)
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.text)
@@ -431,31 +449,32 @@ class MiniPlayer(QWidget):
         self.app = parent_app
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(180, 50)
+        self.setFixedSize(235, 58)
         self.old_pos = None
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setContentsMargins(8, 5, 8, 5)
         
         self.bg_frame = QFrame()
         self.bg_frame.setObjectName("MiniPlayerFrame")
         bg_layout = QHBoxLayout(self.bg_frame)
-        bg_layout.setContentsMargins(12, 0, 12, 0)
+        bg_layout.setContentsMargins(12, 4, 12, 4)
+        bg_layout.setSpacing(8)
         
         self.phase_dot = QLabel("●")
-        self.phase_dot.setStyleSheet("font-size: 10px; color: #10B981;")
+        self.phase_dot.setObjectName("MiniPhaseDot")
 
         self.time_label = QLabel("00:00")
-        self.time_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.time_label.setObjectName("MiniTimeLabel")
         
         self.btn_pause = QPushButton("Pause")
         self.btn_pause.setObjectName("MiniBtn")
-        self.btn_pause.setFixedSize(26, 26)
+        self.btn_pause.setFixedSize(56, 28)
         self.btn_pause.clicked.connect(self.app.toggle_pause)
 
         self.btn_expand = QPushButton("Open")
         self.btn_expand.setObjectName("MiniBtn")
-        self.btn_expand.setFixedSize(26, 26)
+        self.btn_expand.setFixedSize(50, 28)
         self.btn_expand.clicked.connect(self.restore_main)
 
         bg_layout.addWidget(self.phase_dot)
@@ -473,8 +492,12 @@ class MiniPlayer(QWidget):
     def update_time(self, text, paused, strict_mode=False, phase="focus"):
         self.time_label.setText(text)
         self.btn_pause.setText("Resume" if paused else "Pause")
-        self.time_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {TEXT_MUTED if paused else TEXT_PRIMARY};")
-        self.phase_dot.setStyleSheet(f"font-size: 10px; color: {'#F59E0B' if phase == 'break' else '#10B981'};")
+        text_color = resolve_mini_text_color(self.app.data["settings"].get("mini_bg_color", "Theme Surface"))
+        muted_color = "rgba(255, 255, 255, 0.72)" if text_color == "#FFFFFF" else TEXT_MUTED
+        self.time_label.setStyleSheet(f"background-color: transparent; border: none; padding: 0; margin: 0; font-size: 16px; font-weight: bold; color: {muted_color if paused else text_color};")
+        self.phase_dot.setStyleSheet(f"background-color: transparent; border: none; padding: 0; margin: 0; font-size: 10px; color: {'#F59E0B' if phase == 'break' else '#34C759'};")
+        self.btn_pause.setStyleSheet(f"color: {text_color}; background-color: transparent; border: 1px solid transparent;")
+        self.btn_expand.setStyleSheet(f"color: {text_color}; background-color: transparent; border: 1px solid transparent;")
         
         if strict_mode and not paused and phase == "focus":
             self.btn_pause.setDisabled(True)
@@ -589,11 +612,17 @@ class SettingsDialog(QDialog):
         self.session_label_check = QCheckBox("Show Focus Tag Prompt")
         self.session_label_check.setChecked(self.settings.get("show_session_label", True))
 
+        self.after_break_combo = QComboBox()
+        self.after_break_combo.addItems(["Auto Restart", "Ask Every Time"])
+        self.after_break_combo.setCurrentText(self.settings.get("after_break_flow", "Auto Restart"))
+
         bl.addWidget(self.strict_check)
         bl.addWidget(self.sound_check)
         bl.addWidget(self.resume_check)
         bl.addWidget(self.startup_check)
         bl.addWidget(self.session_label_check)
+        bl.addWidget(QLabel("After Break:"))
+        bl.addWidget(self.after_break_combo)
 
         idle_grp = QGroupBox("IDLE DETECTION")
         il = QVBoxLayout(idle_grp)
@@ -668,6 +697,44 @@ class SettingsDialog(QDialog):
         app_layout.addWidget(op_grp)
         app_layout.addStretch()
 
+        # --- TAB 4: Sound ---
+        tab_sound = QWidget()
+        sound_layout = QVBoxLayout(tab_sound)
+        sound_layout.setSpacing(10)
+        sound_layout.setContentsMargins(15, 15, 15, 15)
+
+        sound_grp = QGroupBox("SOUND PLAYBACK")
+        sl = QVBoxLayout(sound_grp)
+
+        self.sound_mode_combo = QComboBox()
+        self.sound_mode_combo.addItems(["System Beep", "Custom Audio File"])
+        self.sound_mode_combo.setCurrentText(self.settings.get("sound_mode", "System Beep"))
+
+        self.custom_sound_button = QPushButton("Choose Audio File")
+        self.custom_sound_button.clicked.connect(self.choose_sound_file)
+        self.custom_sound_button.setMinimumHeight(42)
+
+        self.custom_sound_path = self.settings.get("custom_sound_file", "")
+        self.custom_sound_label = QLabel(self.custom_sound_path or "No file selected")
+        self.custom_sound_label.setWordWrap(True)
+        self.custom_sound_label.setStyleSheet("color: #6E6E73; font-size: 11px;")
+        self.custom_sound_label.setMinimumHeight(24)
+
+        self.sound_hint = QLabel("MP3 and WAV files are supported. System Beep uses the OS default alert sound.")
+        self.sound_hint.setWordWrap(True)
+        self.sound_hint.setStyleSheet("color: #6E6E73; font-size: 11px;")
+
+        sl.addWidget(QLabel("Sound Mode:"))
+        sl.addWidget(self.sound_mode_combo)
+        sl.addWidget(self.custom_sound_button)
+        sl.addWidget(self.custom_sound_label)
+        sl.addWidget(self.sound_hint)
+        sound_layout.addWidget(sound_grp)
+        sound_layout.addStretch()
+
+        self.sound_mode_combo.currentTextChanged.connect(self.update_sound_controls)
+        self.update_sound_controls(self.sound_mode_combo.currentText())
+
         # --- TAB 4: Overlay Settings ---
         tab_overlay = QWidget()
         overlay_layout = QVBoxLayout(tab_overlay)
@@ -698,6 +765,7 @@ class SettingsDialog(QDialog):
         tabs.addTab(tab_behavior, "Behavior")
         tabs.addTab(tab_app, "Appearance")
         tabs.addTab(tab_overlay, "Overlay")
+        tabs.addTab(tab_sound, "Sound")
 
         save_btn = QPushButton("Apply Changes")
         save_btn.setObjectName("PrimaryButton")
@@ -726,9 +794,12 @@ class SettingsDialog(QDialog):
             "theme": self.theme_combo.currentText(),
             "strict_mode": self.strict_check.isChecked(),
             "sound_fx": self.sound_check.isChecked(),
+            "sound_mode": self.sound_mode_combo.currentText(),
+            "custom_sound_file": self.custom_sound_path if self.sound_mode_combo.currentText() == "Custom Audio File" else "",
             "auto_resume": self.resume_check.isChecked(),
             "startup_minimized": self.startup_check.isChecked(),
             "show_session_label": self.session_label_check.isChecked(),
+            "after_break_flow": self.after_break_combo.currentText(),
             "idle_detection": self.idle_check.isChecked(),
             "idle_threshold_mins": self.idle_spin.value(),
             "mini_opacity": self.mini_slider.value(),
@@ -741,6 +812,18 @@ class SettingsDialog(QDialog):
             "show_affirmations": self.affirm_check.isChecked(),
             "custom_break_msg": self.msg_input.text()
         }
+
+    def update_sound_controls(self, mode):
+        is_custom = mode == "Custom Audio File"
+        self.custom_sound_button.setEnabled(is_custom)
+        self.custom_sound_label.setEnabled(is_custom)
+        self.custom_sound_label.setText(self.custom_sound_path or "No file selected")
+
+    def choose_sound_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Choose Audio File", "", "Audio Files (*.wav *.mp3);;WAV Files (*.wav);;MP3 Files (*.mp3)")
+        if path:
+            self.custom_sound_path = path
+            self.custom_sound_label.setText(path)
 
 
 # ================== OVERLAY SCREEN ==================
@@ -769,13 +852,22 @@ class BreakScreen(QWidget):
         self.timer.timeout.connect(self.update_countdown)
         self.tip_timer = QTimer()
         self.tip_timer.timeout.connect(self.rotate_tip)
+        self.audio_output = None
+        self.media_player = None
         
         self.setup_ui()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(20)
+        layout.setSpacing(0)
+
+        self.panel = QFrame()
+        self.panel.setObjectName("OverlayPanel")
+        self.panel.setFixedWidth(860)
+        panel_layout = QVBoxLayout(self.panel)
+        panel_layout.setContentsMargins(44, 36, 44, 36)
+        panel_layout.setSpacing(18)
 
         self.title = QLabel("Rest Your Eyes")
         self.title.setObjectName("OverlayTitle")
@@ -784,16 +876,20 @@ class BreakScreen(QWidget):
         self.sub = QLabel("")
         self.sub.setObjectName("OverlaySub")
         self.sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sub.setWordWrap(True)
         
         self.affirm_label = QLabel("")
         self.affirm_label.setObjectName("OverlayAffirm")
         self.affirm_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.affirm_label.setWordWrap(True)
 
         self.progress_ring = CircularProgress(self.accent_color)
+        self.progress_ring.setStyleSheet("background: transparent;")
         
         self.session_info = QLabel("")
+        self.session_info.setObjectName("OverlaySession")
         self.session_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.session_info.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-size: 13px;")
+        self.session_info.setStyleSheet("background-color: transparent;")
 
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
@@ -812,15 +908,17 @@ class BreakScreen(QWidget):
         btn_layout.addWidget(self.skip_btn)
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        panel_layout.addWidget(self.title)
+        panel_layout.addWidget(self.sub)
+        panel_layout.addWidget(self.affirm_label)
+        panel_layout.addSpacing(20)
+        panel_layout.addWidget(self.progress_ring, alignment=Qt.AlignmentFlag.AlignCenter)
+        panel_layout.addWidget(self.session_info)
+        panel_layout.addSpacing(18)
+        panel_layout.addLayout(btn_layout)
+
         layout.addStretch()
-        layout.addWidget(self.title)
-        layout.addWidget(self.sub)
-        layout.addWidget(self.affirm_label)
-        layout.addSpacing(30)
-        layout.addWidget(self.progress_ring, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.session_info)
-        layout.addSpacing(40)
-        layout.addLayout(btn_layout)
+        layout.addWidget(self.panel, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch()
 
     def start(self, settings, theme_data, session_num=0, total_sessions=0, is_long_break=False):
@@ -834,6 +932,7 @@ class BreakScreen(QWidget):
         self.done_btn.setStyleSheet(f"background-color: {self.accent_color}; border: none; color: white; border-radius: 8px; font-weight: bold; font-size: 14px;")
         self.skip_btn.setStyleSheet(f"background-color: transparent; border: 1px solid {DANGER_COLOR}; color: {DANGER_COLOR}; border-radius: 8px; font-weight: bold; font-size: 14px;")
         self.progress_ring.accent_color = self.accent_color
+        self.progress_ring.text_color = "#FFFFFF"
 
         self.total_time = (self.settings.get("long_break_mins", 0) * 60) if is_long_break else self.settings.get("break_secs", 20)
         self.time_left = self.total_time
@@ -860,8 +959,7 @@ class BreakScreen(QWidget):
             self.sub.setText("Close your eyes and relax.")
             self.tip_timer.stop()
 
-        if self.settings.get("sound_fx", True):
-            QApplication.beep()
+        self.play_sound()
 
         self.showFullScreen()
         self.animation.setStartValue(0.0)
@@ -880,7 +978,7 @@ class BreakScreen(QWidget):
         # Escalation Beeps
         if self.settings.get("sound_fx", True):
             if self.time_left == self.total_time // 2 or (5 >= self.time_left > 0):
-                QApplication.beep()
+                self.play_sound()
 
         if self.time_left <= 0:
             self.stop_all()
@@ -890,6 +988,29 @@ class BreakScreen(QWidget):
         self.timer.stop()
         self.tip_timer.stop()
         self.close()
+
+    def play_sound(self):
+        if not self.settings.get("sound_fx", True):
+            return
+
+        mode = self.settings.get("sound_mode", "System Beep")
+        sound_file = self.settings.get("custom_sound_file", "")
+
+        if mode == "Custom Audio File" and sound_file:
+            try:
+                if os.path.exists(sound_file):
+                    if self.media_player is None:
+                        self.audio_output = QAudioOutput()
+                        self.media_player = QMediaPlayer()
+                        self.media_player.setAudioOutput(self.audio_output)
+                    self.audio_output.setVolume(1.0)
+                    self.media_player.setSource(QUrl.fromLocalFile(sound_file))
+                    self.media_player.play()
+                    return
+            except Exception:
+                pass
+
+        QApplication.beep()
 
     def done(self):
         self.stop_all()
@@ -1270,17 +1391,36 @@ class DevEyeApp(QMainWindow):
         self.phase_label.setText("FOCUS SESSION")
         self.time_left_secs = self.data["settings"]["work_mins"] * 60
         self.update_timer_display()
-        
-        if not user_triggered and not self.data["settings"].get("auto_resume", False):
-            self.is_paused = True
-            self.btn_pause.setText("Start")
-            self.btn_pause.setObjectName("PrimaryButton")
-            self.apply_current_theme() 
+
+        self.is_paused = False
+        self.btn_pause.setText("Pause")
+        self.btn_pause.setObjectName("")
+
+        if not user_triggered:
+            self.prompt_label_and_start()
         else:
-            if not user_triggered:
-                self.prompt_label_and_start()
+            self.tick_timer.start(1000)
+
+    def after_break_flow(self):
+        flow_mode = self.data["settings"].get("after_break_flow", "Auto Restart")
+        if flow_mode == "Ask Every Time":
+            reply = QMessageBox.question(
+                self,
+                "Restart Focus?",
+                "The break is over. Start the next focus session now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.reset_timer(user_triggered=True)
             else:
-                self.tick_timer.start(1000)
+                self.is_paused = True
+                self.btn_pause.setText("Start")
+                self.btn_pause.setObjectName("PrimaryButton")
+                self.apply_current_theme()
+                self.update_timer_display()
+            return
+
+        self.reset_timer(user_triggered=True)
 
     def toggle_pause(self):
         if not self.is_paused and self.data["settings"].get("strict_mode", False) and self.current_phase == "focus":
@@ -1317,7 +1457,10 @@ class DevEyeApp(QMainWindow):
     def open_settings(self):
         dialog = SettingsDialog(self, self)
         if dialog.exec():
-            self.data["settings"] = dialog.get_settings()
+            new_settings = dialog.get_settings()
+            if new_settings.get("sound_mode") != "Custom Audio File":
+                new_settings["custom_sound_file"] = ""
+            self.data["settings"] = new_settings
             DataManager.save(self.data)
             
             self.apply_current_theme()
@@ -1355,14 +1498,14 @@ class DevEyeApp(QMainWindow):
             
         DataManager.save(self.data)
         self.update_stats()
-        self.reset_timer()
+        self.after_break_flow()
 
     def handle_skip(self):
         self.data["stats"]["skipped"] += 1
         DataManager.log_session(self.data, "skipped", self.data["settings"]["work_mins"], self.current_session_label)
         DataManager.save(self.data)
         self.update_stats()
-        self.reset_timer()
+        self.after_break_flow()
 
 
 # ================== RUN ==================
@@ -1374,7 +1517,9 @@ if __name__ == "__main__":
         app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
         
     window = DevEyeApp()
-    if not window.data["settings"].get("startup_minimized", False):
+    if window.data["settings"].get("startup_minimized", False):
+        QTimer.singleShot(0, window.launch_mini_player)
+    else:
         window.show()
         
     sys.exit(app.exec())

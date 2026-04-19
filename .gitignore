@@ -171,3 +171,7 @@ $RECYCLE.BIN/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Local Data and Logs
+deveye_data.json
+automation.log
