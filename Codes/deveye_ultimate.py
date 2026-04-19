@@ -1501,6 +1501,8 @@ class DevEyeApp(QMainWindow):
         else:
             self.tick_timer.start(1000)
 
+
+
     def after_break_flow(self):
         flow_mode = self.data["settings"].get("after_break_flow", "Auto Restart")
         if flow_mode == "Ask Every Time":
