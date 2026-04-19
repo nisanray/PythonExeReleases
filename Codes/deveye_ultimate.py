@@ -1094,6 +1094,7 @@ class DevEyeApp(QMainWindow):
         self.tick_timer.timeout.connect(self.tick)
         
         # Idle Tracking setup
+        # Note: Idle detection runs on 60-second intervals, so pause timing may be up to ~1 minute later than threshold
         self.last_cursor_pos = QCursor.pos()
         self.idle_minutes = 0
         self.idle_timer = QTimer()
