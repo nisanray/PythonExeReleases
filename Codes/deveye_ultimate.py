@@ -1517,12 +1517,9 @@ class DevEyeApp(QMainWindow):
                 self.btn_pause.setText("Start")
                 self.btn_pause.setObjectName("PrimaryButton")
                 self.apply_current_theme()
-                self.update_timer_display()
-            return
-
-        self.reset_timer(user_triggered=True)
 
     def toggle_pause(self, from_idle=False):
+        # Strict mode blocks manual pauses, but idle detection can still pause via from_idle=True
         if not from_idle and not self.is_paused and self.data["settings"].get("strict_mode", False) and self.current_phase == "focus":
             return 
             
