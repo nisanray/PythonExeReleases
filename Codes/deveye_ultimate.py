@@ -163,11 +163,14 @@ def get_overlay_style(opacity_pct):
 
 # ================== DATA MANAGER ==================
 class DataManager:
+    DATA_VERSION = 1  # Increment when data format changes
+
     @staticmethod
     def get_defaults():
         return {
+            "version": DataManager.DATA_VERSION,
             "stats": {
-                "completed": 0, "missed": 0, "skipped": 0, 
+                "completed": 0, "missed": 0, "skipped": 0, "partial": 0,
                 "streak": 0, "last_date": "", "total_focus_mins": 0
             },
             "history": [],
@@ -187,7 +190,9 @@ class DataManager:
                 "show_session_label": True,
                 "after_break_flow": "Auto Restart",
                 "sound_mode": "System Beep",
-                "custom_sound_file": ""
+                "custom_sound_file": "",
+                "mini_player_x": None,
+                "mini_player_y": None
             }
         }
 
@@ -220,7 +225,15 @@ class DataManager:
                 data["settings"]["font_size"] = fs if fs >= 8 else 13
 
                 return data
-        except: return default_data
+        except (json.JSONDecodeError, IOError) as e:
+            # Backup corrupt file before resetting to prevent data loss
+            backup_path = f"{DATA_FILE}.corrupt.{datetime.now().strftime('%Y%m%d_%H%M%S')}.bak"
+            try:
+                os.rename(DATA_FILE, backup_path)
+                print(f"Data file was corrupt. Backed up to: {backup_path}")
+            except Exception:
+                pass  # If backup fails, still return defaults
+            return default_data
 
     @staticmethod
     def save(data):
@@ -243,7 +256,7 @@ class DataManager:
     def export_csv(data, path):
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Date", "Type", "Duration (mins)", "Tag"])
+            writer.writerow(["Date", "Type", "Duration (minutes)", "Tag"])
             for entry in data.get("history", []):
                 writer.writerow([
                     entry.get("date", ""), entry.get("type", ""),
@@ -434,7 +447,7 @@ class HistoryDialog(QDialog):
     def clear_history(self):
         reply = QMessageBox.question(self, 'Confirm Reset', 'Clear all history and reset stats?', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            self.data["stats"] = {"completed": 0, "missed": 0, "skipped": 0, "streak": 0, "last_date": "", "total_focus_mins": 0}
+            self.data["stats"] = {"completed": 0, "missed": 0, "skipped": 0, "partial": 0, "streak": 0, "last_date": "", "total_focus_mins": 0}
             self.data["history"] = []
             DataManager.save(self.data)
             self.populate_list()
@@ -516,6 +529,11 @@ class MiniPlayer(QWidget):
 
     def mouseReleaseEvent(self, event):
         self.old_pos = None
+        # Save position for persistence
+        pos = self.pos()
+        self.app.data["settings"]["mini_player_x"] = pos.x()
+        self.app.data["settings"]["mini_player_y"] = pos.y()
+        DataManager.save(self.app.data)
 
 
 class SettingsDialog(QDialog):
@@ -822,6 +840,22 @@ class SettingsDialog(QDialog):
     def choose_sound_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Choose Audio File", "", "Audio Files (*.wav *.mp3);;WAV Files (*.wav);;MP3 Files (*.mp3)")
         if path:
+            # Validate file exists and is readable
+            if not os.path.exists(path):
+                QMessageBox.warning(self, "Invalid File", "Selected file does not exist.")
+                return
+            # Validate file size (max 10MB to prevent issues)
+            try:
+                size = os.path.getsize(path)
+                if size > 10 * 1024 * 1024:  # 10MB limit
+                    QMessageBox.warning(self, "File Too Large", "Audio file must be smaller than 10MB.")
+                    return
+                if size == 0:
+                    QMessageBox.warning(self, "Empty File", "Selected file is empty.")
+                    return
+            except OSError:
+                QMessageBox.warning(self, "Invalid File", "Cannot read selected file.")
+                return
             self.custom_sound_path = path
             self.custom_sound_label.setText(path)
 
@@ -987,6 +1021,14 @@ class BreakScreen(QWidget):
     def stop_all(self):
         self.timer.stop()
         self.tip_timer.stop()
+        # Cleanup media player resources to prevent memory leaks
+        if self.media_player:
+            self.media_player.stop()
+            self.media_player.deleteLater()
+            self.media_player = None
+        if self.audio_output:
+            self.audio_output.deleteLater()
+            self.audio_output = None
         self.close()
 
     def play_sound(self):
@@ -1318,7 +1360,12 @@ class DevEyeApp(QMainWindow):
 
     def launch_mini_player(self):
         self.hide()
-        if self.mini_player.old_pos is None:
+        # Restore saved position or use default
+        saved_x = self.data["settings"].get("mini_player_x")
+        saved_y = self.data["settings"].get("mini_player_y")
+        if saved_x is not None and saved_y is not None:
+            self.mini_player.move(saved_x, saved_y)
+        elif self.mini_player.old_pos is None:
             screen = QApplication.primaryScreen().availableGeometry()
             self.mini_player.move(screen.width() - 220, 50)
         self.mini_player.show()
@@ -1349,6 +1396,7 @@ class DevEyeApp(QMainWindow):
             is_long_break = True
 
         self.data["settings"]["current_session_count"] = self._session_count
+        DataManager.save(self.data)
         self.current_phase = "break"
         self.phase_label.setText("BREAK TIME")
 
@@ -1405,6 +1453,7 @@ class DevEyeApp(QMainWindow):
 
     def reset_timer(self, user_triggered=False):
         self.current_phase = "focus"
+        self.current_session_label = ""  # Clear previous session label
         self.phase_label.setText("FOCUS SESSION")
         self.time_left_secs = self.data["settings"]["work_mins"] * 60
         self.update_timer_display()
@@ -1517,6 +1566,7 @@ class DevEyeApp(QMainWindow):
 
         elapsed_mins = round(elapsed_secs / 60, 2)
         self.data["stats"]["total_focus_mins"] += elapsed_mins
+        self.data["stats"]["partial"] += 1
         DataManager.log_session(self.data, "partial", elapsed_mins, self.current_session_label or "Partial (Restarted)")
         DataManager.save(self.data)
         self.update_stats()
