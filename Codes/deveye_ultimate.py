@@ -911,6 +911,14 @@ class BreakScreen(QWidget):
         try:
             if self.tts_engine is None:
                 self.tts_engine = pyttsx3.init()
+                # Try to select a female voice
+                voices = self.tts_engine.getProperty('voices')
+                for voice in voices:
+                    voice_name = voice.name.lower()
+                    # Common female voice indicators
+                    if any(keyword in voice_name for keyword in ['female', 'woman', 'girl', 'zira', 'samantha', 'victoria', 'karen', 'susan', 'heera', 'google us english']):
+                        self.tts_engine.setProperty('voice', voice.id)
+                        break
             self.tts_engine.say(text)
             self.tts_engine.runAndWait()
         except Exception:
