@@ -91,6 +91,17 @@ A comprehensive Windows system utility that combines performance monitoring, sec
 - **Resource Protection**: CPU/Thermal sustained load monitor and Battery Savior for laptops.
 - **Stealth Mode**: Screen Shield (transparent lock) and Fake Windows Update decoy screens.
 
+### 👁️ DevEye Ultimate
+A professional eye-care and productivity timer designed to prevent eye strain during long coding sessions.
+
+**Features:**
+- **Smart Pomodoro**: Flexible focus and break intervals (20-20-20 rule supported).
+- **Health Overlays**: Full-screen break reminders with eye exercises and motivational tips.
+- **Deep Analytics**: Track focus hours, streaks, and session history with CSV/JSON export.
+- **Theme Engine**: Multiple premium color palettes and "SF Pro" typography.
+- **Mini Player & Tray**: Stay focused with a minimal floating timer or background operation.
+- **Idle Detection**: Automatically pauses focus when you step away from your PC.
+
 ## Repository Structure
 
 ```
@@ -101,6 +112,7 @@ PythonExeReleases/
 ├── Codes/
 │   ├── Internet_Speed_Meter.py      # Internet Speed Meter overlay
 │   ├── automation_builder.py        # PyCHS Automation Builder (V6)
+│   ├── deveye_ultimate.py           # DevEye Ultimate productivity tool
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
 │   ├── lan_share.py                 # LAN Share (file upload server)
 │   ├── lock_scheduler_gui.py        # Lock Scheduler application
@@ -145,6 +157,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - [yt_download.exe](../../releases/latest/download/yt_download.exe) - YouTube Video Downloader
 - [unsave_facebook.exe](../../releases/latest/download/unsave_facebook.exe) - Facebook Unsave Automation Bot
 - [powerflow_advanced_system_manager.exe](../../releases/latest/download/powerflow_advanced_system_manager.exe) - PowerFlow System Manager
+- [deveye_ultimate.exe](../../releases/latest/download/deveye_ultimate.exe) - DevEye Ultimate
 
 > **Note**: Links will be active after pushing to GitHub. The automated workflow will build and upload EXE files to releases.
 
@@ -177,6 +190,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
     python Codes/yt_download.py
     python Codes/unsave_facebook.py
     python Codes/powerflow_advanced_system_manager.py
+    python Codes/deveye_ultimate.py
     ```
 
 ## Manual Build
