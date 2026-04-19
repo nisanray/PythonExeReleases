@@ -1321,7 +1321,7 @@ class DevEyeApp(QMainWindow):
         btn_quit = QPushButton("Quit")
         btn_quit.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_quit.setObjectName("DangerButton")
-        btn_quit.clicked.connect(QApplication.quit)
+        btn_quit.clicked.connect(self.quit_app)
         
         controls_layout.addWidget(self.btn_pause)
         controls_layout.addWidget(self.btn_force_break)
@@ -1379,7 +1379,7 @@ class DevEyeApp(QMainWindow):
         menu.addAction("Mini Player").triggered.connect(self.launch_mini_player)
         menu.addAction("Break Now").triggered.connect(self.force_break)
         menu.addSeparator()
-        menu.addAction("Quit").triggered.connect(QApplication.quit)
+        menu.addAction("Quit").triggered.connect(self.quit_app)
 
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(lambda r: self.show_normal() if r == QSystemTrayIcon.ActivationReason.DoubleClick else None)
@@ -1407,6 +1407,10 @@ class DevEyeApp(QMainWindow):
         event.ignore()
         self.hide()
         self.tray.showMessage("DevEye Ultimate", "Running in background.", QSystemTrayIcon.MessageIcon.Information, 2000)
+
+    def quit_app(self):
+        self.tray.hide()
+        QApplication.quit()
 
     def tick(self):
         if self.is_paused: return
