@@ -8,6 +8,10 @@ try:
     import winsound
 except ImportError:
     winsound = None
+try:
+    import pyttsx3
+except ImportError:
+    pyttsx3 = None
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QLineEdit,
     QVBoxLayout, QHBoxLayout, QSystemTrayIcon, QMenu, 
@@ -161,6 +165,7 @@ def get_overlay_style(opacity_pct):
     QLabel#OverlaySession {{ font-size: 13px; }}
     """
 
+
 # ================== DATA MANAGER ==================
 class DataManager:
     DATA_VERSION = 1  # Increment when data format changes
@@ -192,7 +197,8 @@ class DataManager:
                 "sound_mode": "System Beep",
                 "custom_sound_file": "",
                 "mini_player_x": None,
-                "mini_player_y": None
+                "mini_player_y": None,
+                "text_to_speech": False
             }
         }
 
@@ -765,14 +771,18 @@ class SettingsDialog(QDialog):
         self.tips_check.setChecked(self.settings.get("show_eye_tips", True))
         self.affirm_check = QCheckBox("Show Motivational Affirmations")
         self.affirm_check.setChecked(self.settings.get("show_affirmations", True))
+        self.tts_check = QCheckBox("Text-to-Speech (Offline)")
+        self.tts_check.setChecked(self.settings.get("text_to_speech", False))
+        self.tts_check.setToolTip("Read health tips and affirmations aloud using system voice")
         ov_l.addWidget(self.tips_check)
         ov_l.addWidget(self.affirm_check)
+        ov_l.addWidget(self.tts_check)
         
         msg_grp = QGroupBox("CUSTOM MESSAGE")
         ml = QVBoxLayout(msg_grp)
         ml.addWidget(QLabel("Override the 'Rest Your Eyes' title:"))
         self.msg_input = QLineEdit(self.settings.get("custom_break_msg", ""))
-        self.msg_input.setPlaceholderText("e.g. Stretch and hydrate! 💧")
+        self.msg_input.setPlaceholderText("e.g. Stretch and hydrate! ")
         ml.addWidget(self.msg_input)
 
         overlay_layout.addWidget(over_grp)
@@ -828,7 +838,8 @@ class SettingsDialog(QDialog):
             "font_size": self.font_slider.value(),
             "show_eye_tips": self.tips_check.isChecked(),
             "show_affirmations": self.affirm_check.isChecked(),
-            "custom_break_msg": self.msg_input.text()
+            "custom_break_msg": self.msg_input.text(),
+            "text_to_speech": self.tts_check.isChecked()
         }
 
     def update_sound_controls(self, mode):
@@ -888,8 +899,22 @@ class BreakScreen(QWidget):
         self.tip_timer.timeout.connect(self.rotate_tip)
         self.audio_output = None
         self.media_player = None
-        
+        self.tts_engine = None
+
         self.setup_ui()
+
+    def speak_text(self, text):
+        if not self.settings.get("text_to_speech", False):
+            return
+        if pyttsx3 is None:
+            return
+        try:
+            if self.tts_engine is None:
+                self.tts_engine = pyttsx3.init()
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+        except Exception:
+            pass
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -928,7 +953,7 @@ class BreakScreen(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
         
-        self.done_btn = QPushButton("✓ I'm Done")
+        self.done_btn = QPushButton(" I'm Done")
         self.done_btn.setFixedSize(160, 45)
         self.done_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.done_btn.clicked.connect(self.done)
@@ -980,15 +1005,19 @@ class BreakScreen(QWidget):
             self.session_info.setText("")
 
         if self.settings.get("show_affirmations", True):
-            self.affirm_label.setText(AFFIRMATIONS[self._affirm_index % len(AFFIRMATIONS)])
+            affirm_text = AFFIRMATIONS[self._affirm_index % len(AFFIRMATIONS)]
+            self.affirm_label.setText(affirm_text)
             self._affirm_index += 1
+            self.speak_text(affirm_text)
         else:
             self.affirm_label.setText("")
 
         if self.settings.get("show_eye_tips", True):
-            self.sub.setText("💡 " + HEALTH_TIPS[self._tip_index % len(HEALTH_TIPS)])
+            tip_text = HEALTH_TIPS[self._tip_index % len(HEALTH_TIPS)]
+            self.sub.setText(" " + tip_text)
             self._tip_index += 1
             self.tip_timer.start(7000)
+            self.speak_text(tip_text)
         else:
             self.sub.setText("Close your eyes and relax.")
             self.tip_timer.stop()
@@ -1003,7 +1032,9 @@ class BreakScreen(QWidget):
 
     def rotate_tip(self):
         self._tip_index += 1
-        self.sub.setText("💡 " + HEALTH_TIPS[self._tip_index % len(HEALTH_TIPS)])
+        tip_text = HEALTH_TIPS[self._tip_index % len(HEALTH_TIPS)]
+        self.sub.setText(" " + tip_text)
+        self.speak_text(tip_text)
 
     def update_countdown(self):
         self.time_left -= 1
@@ -1029,6 +1060,12 @@ class BreakScreen(QWidget):
         if self.audio_output:
             self.audio_output.deleteLater()
             self.audio_output = None
+        # Cleanup TTS engine
+        if self.tts_engine:
+            try:
+                self.tts_engine.stop()
+            except Exception:
+                pass
         self.close()
 
     def play_sound(self):
