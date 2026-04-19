@@ -102,7 +102,10 @@ A professional eye-care and productivity timer designed to prevent eye strain du
 - **Deep Analytics**: Track focus hours, streaks, and session history with CSV/JSON export.
 - **Theme Engine**: Multiple premium color palettes and "SF Pro" typography.
 - **Mini Player & Tray**: Stay focused with a minimal floating timer or background operation.
-- **Idle Detection**: Automatically pauses focus when you step away from your PC.
+- **Idle Detection**: Automatically pauses focus when you step away from your PC (supports both mouse and keyboard activity detection).
+- **Session Labels**: Tag your focus sessions for better organization and tracking.
+- **Data Protection**: Automatic backup of corrupt data files to prevent data loss.
+- **Persistent Settings**: Mini player position and other settings are saved between sessions.
 
 ## Repository Structure
 
