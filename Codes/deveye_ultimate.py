@@ -1454,8 +1454,10 @@ class DevEyeApp(QMainWindow):
         self.tray.showMessage("DevEye Ultimate", "Running in background.", QSystemTrayIcon.MessageIcon.Information, 2000)
 
     def quit_app(self):
-        self.tray.hide()
-        QApplication.quit()
+        reply = QMessageBox.question(self, 'Confirm Quit', 'Are you sure you want to quit DevEye Ultimate?', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self.tray.hide()
+            QApplication.quit()
 
     def tick(self):
         if self.is_paused: return
