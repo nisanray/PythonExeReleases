@@ -1424,7 +1424,7 @@ class DevEyeApp(QMainWindow):
         menu.addAction("Mini Player").triggered.connect(self.launch_mini_player)
         menu.addAction("Break Now").triggered.connect(self.force_break)
         menu.addSeparator()
-        menu.addAction("Quit").triggered.connect(self.quit_app)
+        menu.addAction("Exit").triggered.connect(self.exit_app)
 
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(lambda r: self.show_normal() if r == QSystemTrayIcon.ActivationReason.DoubleClick else None)
@@ -1454,7 +1454,11 @@ class DevEyeApp(QMainWindow):
         self.tray.showMessage("DevEye Ultimate", "Running in background.", QSystemTrayIcon.MessageIcon.Information, 2000)
 
     def quit_app(self):
-        reply = QMessageBox.question(self, 'Confirm Quit', 'Are you sure you want to quit DevEye Ultimate?', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        self.hide()
+        self.tray.showMessage("DevEye Ultimate", "Running in background.", QSystemTrayIcon.MessageIcon.Information, 2000)
+
+    def exit_app(self):
+        reply = QMessageBox.question(self, 'Confirm Exit', 'Are you sure you want to exit DevEye Ultimate?', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             self.tray.hide()
             QApplication.quit()
