@@ -1417,9 +1417,10 @@ class DevEyeApp(QMainWindow):
         else:
             self.update_timer_display()
 
-    def _trigger_break(self):
+    def _trigger_break(self, increment_count=True):
         s = self.data["settings"]
-        self._session_count += 1
+        if increment_count:
+            self._session_count += 1
         interval = s.get("long_break_interval", 0)
         long_break_mins = s.get("long_break_mins", 0)
         
@@ -1437,7 +1438,7 @@ class DevEyeApp(QMainWindow):
 
     def force_break(self):
         self.tick_timer.stop()
-        self._trigger_break()
+        self._trigger_break(increment_count=False)
 
     def update_timer_display(self):
         mins, secs = divmod(self.time_left_secs, 60)
