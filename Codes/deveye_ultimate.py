@@ -404,7 +404,7 @@ class HistoryDialog(QDialog):
             self.list_widget.addItem("No sessions recorded yet. Time to focus!")
         else:
             for entry in history:
-                icon = {"completed": "✅", "missed": "⏰", "skipped": "⏭"}.get(entry.get("type", ""), "•")
+                icon = {"completed": "✅", "missed": "⏰", "skipped": "⏭", "partial": "🧩"}.get(entry.get("type", ""), "•")
                 self.list_widget.addItem(f"{icon} {entry.get('date', '')} | {entry.get('duration', '?')}m | {entry.get('tag', 'Untagged')}")
 
     def export_csv(self):
@@ -1029,6 +1029,7 @@ class DevEyeApp(QMainWindow):
         self.check_streak()
         
         self.is_paused = False
+        self.paused_by_idle = False
         self.current_phase = "focus"
         self.current_session_label = ""
         self.time_left_secs = self.data["settings"]["work_mins"] * 60
@@ -1087,10 +1088,26 @@ class DevEyeApp(QMainWindow):
             self.idle_minutes = 0
             self.last_cursor_pos = current_pos
 
+            # Ask what to do only if pause was caused by idle detection.
+            if self.data["settings"].get("idle_detection", False) and self.paused_by_idle and self.is_paused and self.current_phase == "focus":
+                msg = QMessageBox(self)
+                msg.setWindowTitle("You're back")
+                msg.setText("Activity detected. What would you like to do?")
+                resume_btn = msg.addButton("Resume", QMessageBox.ButtonRole.AcceptRole)
+                start_new_btn = msg.addButton("Start New", QMessageBox.ButtonRole.DestructiveRole)
+                msg.exec()
+
+                if msg.clickedButton() == start_new_btn:
+                    self.record_partial_focus_before_restart()
+                    self.paused_by_idle = False
+                    self.reset_timer(user_triggered=True)
+                elif msg.clickedButton() == resume_btn:
+                    self.toggle_pause()
+
         if self.data["settings"].get("idle_detection", False):
             thresh = self.data["settings"].get("idle_threshold_mins", 5)
             if self.idle_minutes >= thresh and not self.is_paused and self.current_phase == "focus":
-                self.toggle_pause()
+                self.toggle_pause(from_idle=True)
                 self.tray.showMessage("Idle Detected", f"Focus paused after {thresh} mins of inactivity.", QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def init_shortcuts(self):
@@ -1422,16 +1439,18 @@ class DevEyeApp(QMainWindow):
 
         self.reset_timer(user_triggered=True)
 
-    def toggle_pause(self):
-        if not self.is_paused and self.data["settings"].get("strict_mode", False) and self.current_phase == "focus":
+    def toggle_pause(self, from_idle=False):
+        if not from_idle and not self.is_paused and self.data["settings"].get("strict_mode", False) and self.current_phase == "focus":
             return 
             
         self.is_paused = not self.is_paused
         if self.is_paused:
+            self.paused_by_idle = from_idle
             self.btn_pause.setText("Resume")
             self.btn_pause.setObjectName("PrimaryButton")
             self.timer_label.setStyleSheet(f"color: {TEXT_MUTED};")
         else:
+            self.paused_by_idle = False
             self.btn_pause.setText("Pause")
             self.btn_pause.setObjectName("")
             self.timer_label.setStyleSheet(f"color: {TEXT_PRIMARY};")
@@ -1486,6 +1505,21 @@ class DevEyeApp(QMainWindow):
         total_hrs = round(self.data["stats"].get("total_focus_mins", 0) / 60, 1)
         self.card_focus.set_value(str(total_hrs))
         self.update_daily_goal()
+
+    def record_partial_focus_before_restart(self):
+        if self.current_phase != "focus":
+            return
+
+        total_focus_secs = self.data["settings"]["work_mins"] * 60
+        elapsed_secs = max(0, total_focus_secs - self.time_left_secs)
+        if elapsed_secs <= 0:
+            return
+
+        elapsed_mins = round(elapsed_secs / 60, 2)
+        self.data["stats"]["total_focus_mins"] += elapsed_mins
+        DataManager.log_session(self.data, "partial", elapsed_mins, self.current_session_label or "Partial (Restarted)")
+        DataManager.save(self.data)
+        self.update_stats()
 
     def handle_done(self, missed=False):
         if missed: 
