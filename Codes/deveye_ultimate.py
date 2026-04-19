@@ -1145,6 +1145,9 @@ class DevEyeApp(QMainWindow):
                         self.reset_timer(user_triggered=True)
                     elif msg.clickedButton() == resume_btn:
                         self.toggle_pause()
+                    else:
+                        # Dialog closed without explicit choice, clear idle flag
+                        self.paused_by_idle = False
         return super().eventFilter(obj, event)
 
     def check_idle(self):
@@ -1170,11 +1173,15 @@ class DevEyeApp(QMainWindow):
                     self.reset_timer(user_triggered=True)
                 elif msg.clickedButton() == resume_btn:
                     self.toggle_pause()
+                else:
+                    # Dialog closed without explicit choice, clear idle flag
+                    self.paused_by_idle = False
 
         if self.data["settings"].get("idle_detection", False):
             thresh = self.data["settings"].get("idle_threshold_mins", 5)
             if self.idle_minutes >= thresh and not self.is_paused and self.current_phase == "focus":
                 self.toggle_pause(from_idle=True)
+                self.paused_by_idle = True
                 self.tray.showMessage("Idle Detected", f"Focus paused after {thresh} mins of inactivity.", QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def init_shortcuts(self):
