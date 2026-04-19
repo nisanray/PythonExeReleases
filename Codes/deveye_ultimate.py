@@ -1469,7 +1469,7 @@ class DevEyeApp(QMainWindow):
         self.streak_badge.setText(f"🔥 {self.data['stats'].get('streak', 1)} Day Streak")
 
     def prompt_label_and_start(self):
-        if self.data["settings"].get("show_session_label", True):
+        if self.data["settings"].get("show_session_label", True) and self.isVisible():
             dlg = SessionLabelDialog(self)
             colors = self.get_theme_colors()
             dlg.setStyleSheet(get_stylesheet(
