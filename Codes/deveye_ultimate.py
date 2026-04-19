@@ -1596,7 +1596,7 @@ class DevEyeApp(QMainWindow):
         if elapsed_secs <= 0:
             return
 
-        elapsed_mins = round(elapsed_secs / 60, 2)
+        elapsed_mins = round(elapsed_secs / 60, 1)
         self.data["stats"]["total_focus_mins"] += elapsed_mins
         self.data["stats"]["partial"] += 1
         DataManager.log_session(self.data, "partial", elapsed_mins, self.current_session_label or "Partial (Restarted)")
