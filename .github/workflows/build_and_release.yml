@@ -24,26 +24,24 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Detect modified Python files
-      id: changes
+    - name: Collect Python files to build
+      id: files
       shell: pwsh
       run: |
-        $before = "${{ github.event.before }}"
-        $sha = "${{ github.sha }}"
-        $files = git diff --name-only --diff-filter=AMR $before $sha -- Codes/*.py
+        $files = Get-ChildItem -Path Codes -Filter *.py -File | ForEach-Object { $_.FullName.Replace('\\', '/') }
 
         if (-not $files) {
           "files=[]" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "No modified Python files detected."
+          Write-Host "No Python files found in Codes/."
           exit 0
         }
 
-        $json = @($files | ForEach-Object { $_.Replace('\\', '/') }) | ConvertTo-Json -AsArray -Compress
+        $json = @($files) | ConvertTo-Json -AsArray -Compress
         "files=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-        Write-Host "Modified Python files: $json"
+        Write-Host "Python files to build: $json"
 
     - name: Auto-detect and install dependencies from code
-      if: steps.changes.outputs.files != '[]'
+      if: steps.files.outputs.files != '[]'
       shell: python
       env:
         PYTHONIOENCODING: utf-8
@@ -72,9 +70,9 @@ jobs:
             "socketio": "python-socketio",
         }
 
-        changed_files = json.loads(r'''${{ steps.changes.outputs.files }}''')
-        if isinstance(changed_files, str):
-          changed_files = [changed_files]
+        build_files = json.loads(r'''${{ steps.files.outputs.files }}''')
+        if isinstance(build_files, str):
+          build_files = [build_files]
 
         # Standard library modules to skip (not exhaustive, but covers common ones)
         STDLIB = set(sys.stdlib_module_names) if hasattr(sys, 'stdlib_module_names') else set()
@@ -119,7 +117,7 @@ jobs:
 
         third_party = set()
 
-        for filepath in changed_files:
+        for filepath in build_files:
             with open(filepath, "r", encoding="utf-8") as f:
                 try:
                     tree = ast.parse(f.read(), filename=filepath)
@@ -165,19 +163,19 @@ jobs:
         print("[OK] All dependencies installed successfully!")
 
     - name: Build modified EXEs
-      if: steps.changes.outputs.files != '[]'
+      if: steps.files.outputs.files != '[]'
       run: |
-        $files = '${{ steps.changes.outputs.files }}' | ConvertFrom-Json
+        $files = '${{ steps.files.outputs.files }}' | ConvertFrom-Json
 
         foreach ($file in $files) {
           $f = Get-Item $file
           Write-Host "[BUILD] Building: $($f.Name)"
-          pyinstaller --onefile --windowed --distpath dist --name "$($f.BaseName)" "$($f.FullName)"
+          pyinstaller --noconfirm --clean --onefile --windowed --noupx --distpath dist --name "$($f.BaseName)" "$($f.FullName)"
         }
-        Write-Host "[OK] Modified EXEs built successfully!"
+        Write-Host "[OK] All EXEs built successfully!"
 
     - name: Generate release tag
-      if: steps.changes.outputs.files != '[]'
+      if: steps.files.outputs.files != '[]'
       id: tag
       shell: bash
       run: |
@@ -186,7 +184,7 @@ jobs:
         echo "Release tag: $TAG"
 
     - name: Generate release body
-      if: steps.changes.outputs.files != '[]'
+      if: steps.files.outputs.files != '[]'
       id: body
       shell: bash
       run: |
@@ -202,7 +200,7 @@ jobs:
         echo "_Built automatically from \`Codes/\` on $(date -u '+%Y-%m-%d %H:%M UTC')_" >> release_notes.md
 
     - name: Create Release
-      if: steps.changes.outputs.files != '[]'
+      if: steps.files.outputs.files != '[]'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.tag.outputs.tag }}
