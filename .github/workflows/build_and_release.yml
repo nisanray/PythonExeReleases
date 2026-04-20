@@ -17,19 +17,39 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 2
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
+    - name: Detect modified Python files
+      id: changes
+      shell: pwsh
+      run: |
+        $before = "${{ github.event.before }}"
+        $sha = "${{ github.sha }}"
+        $files = git diff --name-only --diff-filter=AMR $before $sha -- Codes/*.py
+
+        if (-not $files) {
+          "files=[]" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "No modified Python files detected."
+          exit 0
+        }
+
+        $json = @($files | ForEach-Object { $_.Replace('\\', '/') }) | ConvertTo-Json -Compress
+        "files=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        Write-Host "Modified Python files: $json"
+
     - name: Auto-detect and install dependencies from code
+      if: steps.changes.outputs.files != '[]'
       shell: python
       env:
         PYTHONIOENCODING: utf-8
       run: |
         import ast, os, sys, subprocess, importlib.util
+        import json
 
         # Mapping: import name -> PyPI package name (for cases where they differ)
         IMPORT_TO_PYPI = {
@@ -51,6 +71,8 @@ jobs:
             "engineio": "python-engineio",
             "socketio": "python-socketio",
         }
+
+        changed_files = json.loads(r'''${{ steps.changes.outputs.files }}''')
 
         # Standard library modules to skip (not exhaustive, but covers common ones)
         STDLIB = set(sys.stdlib_module_names) if hasattr(sys, 'stdlib_module_names') else set()
@@ -93,13 +115,9 @@ jobs:
                 "zlib", "_thread", "__future__",
             }
 
-        codes_dir = "Codes"
         third_party = set()
 
-        for filename in os.listdir(codes_dir):
-            if not filename.endswith(".py"):
-                continue
-            filepath = os.path.join(codes_dir, filename)
+        for filepath in changed_files:
             with open(filepath, "r", encoding="utf-8") as f:
                 try:
                     tree = ast.parse(f.read(), filename=filepath)
@@ -144,15 +162,20 @@ jobs:
         )
         print("[OK] All dependencies installed successfully!")
 
-    - name: Build all EXEs in Codes/
+    - name: Build modified EXEs
+      if: steps.changes.outputs.files != '[]'
       run: |
-        foreach ($f in Get-ChildItem -Path Codes -Filter *.py) {
+        $files = '${{ steps.changes.outputs.files }}' | ConvertFrom-Json
+
+        foreach ($file in $files) {
+          $f = Get-Item $file
           Write-Host "[BUILD] Building: $($f.Name)"
           pyinstaller --onefile --windowed --distpath dist --name "$($f.BaseName)" "$($f.FullName)"
         }
-        Write-Host "[OK] All EXEs built successfully!"
+        Write-Host "[OK] Modified EXEs built successfully!"
 
     - name: Generate release tag
+      if: steps.changes.outputs.files != '[]'
       id: tag
       shell: bash
       run: |
@@ -161,6 +184,7 @@ jobs:
         echo "Release tag: $TAG"
 
     - name: Generate release body
+      if: steps.changes.outputs.files != '[]'
       id: body
       shell: bash
       run: |
@@ -176,6 +200,7 @@ jobs:
         echo "_Built automatically from \`Codes/\` on $(date -u '+%Y-%m-%d %H:%M UTC')_" >> release_notes.md
 
     - name: Create Release
+      if: steps.changes.outputs.files != '[]'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.tag.outputs.tag }}

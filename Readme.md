@@ -1,6 +1,6 @@
 # Python to EXE Release Repository
 
-This repository contains Python applications that are automatically converted to Windows executables using GitHub Actions. The CI/CD pipeline automatically detects all third-party libraries from the source code, builds standalone EXEs, and creates a new GitHub release — no manual dependency management needed.
+This repository contains Python applications that are automatically converted to Windows executables using GitHub Actions. The CI/CD pipeline automatically detects third-party libraries from the changed source code, builds standalone EXEs for modified apps, and creates a new GitHub release — no manual dependency management needed.
 
 ## Applications
 
@@ -133,13 +133,13 @@ PythonExeReleases/
 
 This repository uses GitHub Actions to automatically:
 
-1. **Detect Dependencies**: Scans all Python files in `Codes/` using AST parsing to extract third-party imports — no `requirements.txt` needed
+1. **Detect Dependencies**: Scans only the changed Python files in `Codes/` using AST parsing to extract third-party imports — no `requirements.txt` needed
 2. **Install Packages**: Maps import names to PyPI packages and installs them automatically
-3. **Build Executables**: Converts each Python script to a standalone Windows EXE using PyInstaller
-4. **Create Release**: Creates a GitHub release with version tag and uploads all EXE files
+3. **Build Executables**: Converts each modified Python script to a standalone Windows EXE using PyInstaller
+4. **Create Release**: Creates a GitHub release with version tag and uploads the built EXE files
 
 ### Workflow Triggers
-- Builds are triggered only when files in `Codes/` are pushed to the `master` branch
+- Builds are triggered only when files in `Codes/` are pushed to the `master` branch, and only the modified `.py` files are converted into EXEs
 - Each build creates a new release with incrementing version numbers
 - Executables are built on Windows environment using Python 3.11
 
