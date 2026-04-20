@@ -1161,7 +1161,7 @@ class DevEyeApp(QMainWindow):
         self.update_timer_display()
 
     def check_streak(self):
-        # Streaks are updated when a focus session is actually completed.
+        # Streaks update only after a focus session is actually completed.
         if "streak" not in self.data["stats"]:
             self.data["stats"]["streak"] = 0
         if "last_date" not in self.data["stats"]:
