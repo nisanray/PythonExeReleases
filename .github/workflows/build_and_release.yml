@@ -38,7 +38,7 @@ jobs:
           exit 0
         }
 
-        $json = @($files | ForEach-Object { $_.Replace('\\', '/') }) | ConvertTo-Json -Compress
+        $json = @($files | ForEach-Object { $_.Replace('\\', '/') }) | ConvertTo-Json -AsArray -Compress
         "files=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
         Write-Host "Modified Python files: $json"
 
@@ -73,6 +73,8 @@ jobs:
         }
 
         changed_files = json.loads(r'''${{ steps.changes.outputs.files }}''')
+        if isinstance(changed_files, str):
+          changed_files = [changed_files]
 
         # Standard library modules to skip (not exhaustive, but covers common ones)
         STDLIB = set(sys.stdlib_module_names) if hasattr(sys, 'stdlib_module_names') else set()
