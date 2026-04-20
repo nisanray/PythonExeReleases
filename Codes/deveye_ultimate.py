@@ -454,6 +454,7 @@ class HistoryDialog(QDialog):
         reply = QMessageBox.question(self, 'Confirm Reset', 'Clear all history and reset stats?', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             self.data["stats"] = {"completed": 0, "missed": 0, "skipped": 0, "partial": 0, "streak": 0, "last_date": "", "total_focus_mins": 0}
+            self.data["settings"]["current_session_count"] = 0
             self.data["history"] = []
             DataManager.save(self.data)
             self.populate_list()
@@ -1160,16 +1161,24 @@ class DevEyeApp(QMainWindow):
         self.update_timer_display()
 
     def check_streak(self):
+        # Streaks are updated when a focus session is actually completed.
+        if "streak" not in self.data["stats"]:
+            self.data["stats"]["streak"] = 0
+        if "last_date" not in self.data["stats"]:
+            self.data["stats"]["last_date"] = ""
+
+    def update_streak_after_completion(self):
         today = date.today().isoformat()
         last = self.data["stats"].get("last_date", "")
-        if last == today: return
         yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+        if last == today:
+            return
         if last == yesterday:
             self.data["stats"]["streak"] += 1
-        elif last != today:
+        else:
             self.data["stats"]["streak"] = 1
         self.data["stats"]["last_date"] = today
-        DataManager.save(self.data)
 
     def eventFilter(self, obj, event):
         # Detect keyboard activity to reset idle timer
@@ -1526,7 +1535,7 @@ class DevEyeApp(QMainWindow):
         self.streak_badge.setText(f"🔥 {self.data['stats'].get('streak', 1)} Day Streak")
 
     def prompt_label_and_start(self):
-        if self.data["settings"].get("show_session_label", True) and self.isVisible():
+        if self.data["settings"].get("show_session_label", True):
             dlg = SessionLabelDialog(self)
             colors = self.get_theme_colors()
             dlg.setStyleSheet(get_stylesheet(
@@ -1574,6 +1583,8 @@ class DevEyeApp(QMainWindow):
                 self.btn_pause.setText("Start")
                 self.btn_pause.setObjectName("PrimaryButton")
                 self.apply_current_theme()
+        else:
+            self.reset_timer(user_triggered=True)
 
     def toggle_pause(self, from_idle=False):
         # Strict mode blocks manual pauses, but idle detection can still pause via from_idle=True
@@ -1587,6 +1598,10 @@ class DevEyeApp(QMainWindow):
             self.btn_pause.setObjectName("PrimaryButton")
             self.timer_label.setStyleSheet(f"color: {TEXT_MUTED};")
         else:
+            if self.current_phase == "break" or self.time_left_secs <= 0:
+                self.paused_by_idle = False
+                self.reset_timer(user_triggered=True)
+                return
             self.paused_by_idle = False
             self.btn_pause.setText("Pause")
             self.btn_pause.setObjectName("")
@@ -1613,9 +1628,13 @@ class DevEyeApp(QMainWindow):
     def open_settings(self):
         dialog = SettingsDialog(self, self)
         if dialog.exec():
+            previous_settings = self.data["settings"]
             new_settings = dialog.get_settings()
             if new_settings.get("sound_mode") != "Custom Audio File":
                 new_settings["custom_sound_file"] = ""
+            new_settings["current_session_count"] = previous_settings.get("current_session_count", 0)
+            new_settings["mini_player_x"] = previous_settings.get("mini_player_x")
+            new_settings["mini_player_y"] = previous_settings.get("mini_player_y")
             self.data["settings"] = new_settings
             DataManager.save(self.data)
             
@@ -1667,6 +1686,7 @@ class DevEyeApp(QMainWindow):
             self.data["stats"]["completed"] += 1
             self.data["stats"]["total_focus_mins"] += self.data["settings"]["work_mins"]
             DataManager.log_session(self.data, "completed", self.data["settings"]["work_mins"], self.current_session_label)
+            self.update_streak_after_completion()
             
         DataManager.save(self.data)
         self.update_stats()
