@@ -3,6 +3,7 @@ import json
 import os
 import csv
 import random
+import shutil
 from datetime import datetime, date, timedelta
 try:
     import winsound
@@ -24,7 +25,42 @@ from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, Q
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush, QShortcut, QKeySequence, QCursor
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 
-DATA_FILE = "deveye_data.json"
+APP_NAME = "DevEye Ultimate"
+DATA_FILE_NAME = "deveye_data.json"
+
+
+def get_data_file_path():
+    appdata_dir = os.getenv("APPDATA")
+    if not appdata_dir:
+        appdata_dir = os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+    data_dir = os.path.join(appdata_dir, APP_NAME)
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, DATA_FILE_NAME)
+
+
+DATA_FILE = get_data_file_path()
+
+
+def get_legacy_data_candidates():
+    candidates = []
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates.append(os.path.join(base_dir, DATA_FILE_NAME))
+
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        candidates.append(os.path.join(exe_dir, DATA_FILE_NAME))
+
+    candidates.append(os.path.join(os.getcwd(), DATA_FILE_NAME))
+
+    seen = set()
+    unique_candidates = []
+    for path in candidates:
+        normalized = os.path.normcase(os.path.abspath(path))
+        if normalized not in seen:
+            seen.add(normalized)
+            unique_candidates.append(path)
+    return unique_candidates
+###
 
 # ================== HEALTH TIPS & AFFIRMATIONS ==================
 HEALTH_TIPS = [
@@ -171,6 +207,21 @@ class DataManager:
     DATA_VERSION = 1  # Increment when data format changes
 
     @staticmethod
+    def migrate_legacy_file_if_needed():
+        if os.path.exists(DATA_FILE):
+            return
+
+        for legacy_file in get_legacy_data_candidates():
+            if not os.path.exists(legacy_file):
+                continue
+            try:
+                os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+                shutil.copy2(legacy_file, DATA_FILE)
+                return
+            except OSError:
+                continue
+
+    @staticmethod
     def get_defaults():
         return {
             "version": DataManager.DATA_VERSION,
@@ -205,6 +256,7 @@ class DataManager:
     @staticmethod
     def load():
         default_data = DataManager.get_defaults()
+        DataManager.migrate_legacy_file_if_needed()
         if not os.path.exists(DATA_FILE): return default_data
         try:
             with open(DATA_FILE, "r") as f:
@@ -243,7 +295,14 @@ class DataManager:
 
     @staticmethod
     def save(data):
-        with open(DATA_FILE, "w") as f: json.dump(data, f, indent=4)
+        try:
+            os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+            with open(DATA_FILE, "w") as f:
+                json.dump(data, f, indent=4)
+            return True
+        except OSError as e:
+            print(f"Failed to save data: {e}")
+            return False
 
     @staticmethod
     def log_session(data, session_type, duration_mins, label=""):
@@ -373,14 +432,99 @@ class SessionLabelDialog(QDialog):
         return self.edit.text().strip()
 
 
+class FocusGraphWidget(QWidget):
+    def __init__(self, data, accent_color, parent=None):
+        super().__init__(parent)
+        self.data = data
+        self.accent_color = accent_color
+        self.setMinimumHeight(150)
+
+    def get_series(self):
+        totals = {}
+        today = date.today()
+        for offset in range(6, -1, -1):
+            day_key = (today - timedelta(days=offset)).isoformat()
+            totals[day_key] = 0.0
+
+        for entry in self.data.get("history", []):
+            try:
+                entry_date = datetime.strptime(entry.get("date", ""), "%Y-%m-%d %H:%M").date().isoformat()
+            except ValueError:
+                continue
+
+            if entry_date not in totals:
+                continue
+
+            entry_type = entry.get("type", "")
+            if entry_type in ("completed", "partial"):
+                try:
+                    totals[entry_date] += float(entry.get("duration", 0))
+                except (TypeError, ValueError):
+                    continue
+
+        return list(totals.items())
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = self.rect().adjusted(8, 24, -8, -22)
+
+        series = self.get_series()
+        if not series:
+            painter.setPen(QColor(TEXT_MUTED))
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "No history yet")
+            painter.end()
+            return
+
+        max_value = max((value for _, value in series), default=0)
+        max_value = max(max_value, 1)
+
+        bar_count = len(series)
+        gap = 8
+        bar_width = max(14, int((rect.width() - gap * (bar_count - 1)) / bar_count))
+        total_width = bar_width * bar_count + gap * (bar_count - 1)
+        start_x = rect.left() + max(0, (rect.width() - total_width) // 2)
+        baseline = rect.bottom() - 18
+        chart_height = rect.height() - 30
+
+        painter.setPen(QPen(QColor(0, 0, 0, 20), 1))
+        painter.drawLine(rect.left(), baseline, rect.right(), baseline)
+
+        bar_color = QColor(self.accent_color)
+        label_color = QColor(TEXT_MUTED)
+
+        x = start_x
+        for day_key, value in series:
+            bar_height = int((value / max_value) * chart_height)
+            bar_rect = QRectF(x, baseline - bar_height, bar_width, bar_height)
+
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(bar_color.red(), bar_color.green(), bar_color.blue(), 220))
+            painter.drawRoundedRect(bar_rect, 6, 6)
+
+            painter.setPen(label_color)
+            day_label = datetime.strptime(day_key, "%Y-%m-%d").strftime("%a")
+            painter.drawText(QRectF(x - 4, baseline + 2, bar_width + 8, 12), Qt.AlignmentFlag.AlignCenter, day_label)
+
+            if value > 0:
+                painter.drawText(QRectF(x - 12, baseline - bar_height - 16, bar_width + 24, 12), Qt.AlignmentFlag.AlignCenter, f"{value:.0f}m")
+
+            x += bar_width + gap
+
+        painter.end()
+
+
 class HistoryDialog(QDialog):
-    def __init__(self, data, theme_style, parent=None):
+    def __init__(self, data, theme_style, accent_color, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Data & History")
-        self.setFixedSize(450, 400)
+        self.setFixedSize(470, 560)
         self.setStyleSheet(theme_style)
         self.data = data
         layout = QVBoxLayout(self)
+
+        self.graph = FocusGraphWidget(self.data, accent_color)
+        layout.addWidget(self.graph)
         
         self.list_widget = QListWidget()
         self.populate_list()
@@ -1622,7 +1766,7 @@ class DevEyeApp(QMainWindow):
             self.data["settings"].get("font_size", 13),
             self.data["settings"].get("mini_bg_color", "Theme Surface")
         )
-        hist_dialog = HistoryDialog(self.data, theme_style, self)
+        hist_dialog = HistoryDialog(self.data, theme_style, colors["accent"], self)
         hist_dialog.exec()
 
     def open_settings(self):
