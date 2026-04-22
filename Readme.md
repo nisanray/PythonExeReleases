@@ -120,6 +120,7 @@ PythonExeReleases/
 │   ├── Internet_Speed_Meter.py      # Internet Speed Meter overlay
 │   ├── automation_builder.py        # PyCHS Automation Builder (V6)
 │   ├── deveye_ultimate.py           # DevEye Ultimate productivity tool
+│   ├── git_ai_autmation.py          # Git AI Automation tool
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
 │   ├── lan_share.py                 # LAN Share (file upload server)
 │   ├── lock_scheduler_gui.py        # Lock Scheduler application
