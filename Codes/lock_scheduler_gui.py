@@ -10,6 +10,11 @@ from PyQt6.QtCore import QTimer, QTime, Qt
 from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QCursor
 ###
 
+# Windows virtual key codes used for global hotkey detection.
+VK_CONTROL = 0x11
+VK_SHIFT = 0x10
+VK_X = 0x58
+
 class LockScheduler(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -33,6 +38,14 @@ class LockScheduler(QMainWindow):
         self.internet_timer.timeout.connect(self.check_internet_status)
         self.is_internet_monitoring = False
         self.failed_internet_checks = 0
+        self.internet_continuous_paused = False
+
+        # Global hotkey monitor for continuous lock pause/resume.
+        # QShortcut only works when this window is focused.
+        self.hotkey_pressed = False
+        self.hotkey_timer = QTimer(self)
+        self.hotkey_timer.timeout.connect(self.check_global_pause_hotkey)
+        self.hotkey_timer.start(120)
         
     def init_ui(self):
         self.setWindowTitle("Lock Scheduler")
@@ -361,6 +374,19 @@ class LockScheduler(QMainWindow):
         self.internet_conn_label = QLabel("Connection: Checking...")
         group5_layout.addWidget(self.internet_conn_label)
 
+        self.continuous_lock_checkbox = QCheckBox("Continuous lock while internet is offline")
+        self.continuous_lock_checkbox.setStyleSheet("font-size: 10px; color: #666666;")
+        self.continuous_lock_checkbox.setChecked(False)
+        group5_layout.addWidget(self.continuous_lock_checkbox)
+
+        self.continuous_hotkey_label = QLabel("Hotkey: Ctrl+Shift+X to pause/resume continuous lock")
+        self.continuous_hotkey_label.setStyleSheet("font-size: 10px; color: #666666;")
+        group5_layout.addWidget(self.continuous_hotkey_label)
+
+        self.continuous_pause_status = QLabel("Continuous Mode: Active")
+        self.continuous_pause_status.setStyleSheet("color: #2e7d32;")
+        group5_layout.addWidget(self.continuous_pause_status)
+
         self.toggle_internet_lock_btn = QPushButton("Activate Internet Lock")
         self.toggle_internet_lock_btn.setCheckable(True)
         self.toggle_internet_lock_btn.clicked.connect(self.toggle_internet_lock)
@@ -553,15 +579,55 @@ class LockScheduler(QMainWindow):
         if self.toggle_internet_lock_btn.isChecked():
             self.is_internet_monitoring = True
             self.failed_internet_checks = 0
+            self.internet_continuous_paused = False
             self.internet_timer.start(1000) # Check every 1s
             self.internet_lock_status.setText("Status: Active - Monitoring...")
             self.toggle_internet_lock_btn.setText("Deactivate Internet Lock")
+            self.update_continuous_pause_status()
         else:
             self.is_internet_monitoring = False
             self.internet_timer.stop()
             self.internet_lock_status.setText("Status: Inactive")
             self.toggle_internet_lock_btn.setText("Activate Internet Lock")
             self.internet_conn_label.setText("Connection: Unknown")
+            self.internet_continuous_paused = False
+            self.update_continuous_pause_status()
+
+    def toggle_continuous_pause(self):
+        if not self.is_internet_monitoring:
+            return
+        self.internet_continuous_paused = not self.internet_continuous_paused
+        self.update_continuous_pause_status()
+
+    def is_key_down(self, key_code):
+        if sys.platform != "win32":
+            return False
+        return bool(ctypes.windll.user32.GetAsyncKeyState(key_code) & 0x8000)
+
+    def check_global_pause_hotkey(self):
+        if not self.is_internet_monitoring:
+            self.hotkey_pressed = False
+            return
+
+        combo_down = (
+            self.is_key_down(VK_CONTROL)
+            and self.is_key_down(VK_SHIFT)
+            and self.is_key_down(VK_X)
+        )
+
+        # Trigger once per keypress to avoid repeated toggles while keys are held.
+        if combo_down and not self.hotkey_pressed:
+            self.toggle_continuous_pause()
+
+        self.hotkey_pressed = combo_down
+
+    def update_continuous_pause_status(self):
+        if self.internet_continuous_paused:
+            self.continuous_pause_status.setText("Continuous Mode: Paused")
+            self.continuous_pause_status.setStyleSheet("color: #d13438;")
+        else:
+            self.continuous_pause_status.setText("Continuous Mode: Active")
+            self.continuous_pause_status.setStyleSheet("color: #2e7d32;")
 
     def check_internet_status(self):
         if not self.is_internet_monitoring:
@@ -579,10 +645,15 @@ class LockScheduler(QMainWindow):
             self.internet_conn_label.setStyleSheet("color: red;")
             
             if self.failed_internet_checks >= 2: # 2 seconds grace
-                self.lock_device()
-                # Deactivate after successful lock as per user request
-                self.toggle_internet_lock_btn.setChecked(False)
-                self.toggle_internet_lock()
+                if self.continuous_lock_checkbox.isChecked():
+                    if not self.internet_continuous_paused:
+                        self.lock_device()
+                    else:
+                        self.internet_lock_status.setText("Status: Active - Continuous Lock Paused")
+                else:
+                    self.lock_device()
+                    self.toggle_internet_lock_btn.setChecked(False)
+                    self.toggle_internet_lock()
         
 def main():
     app = QApplication(sys.argv)
