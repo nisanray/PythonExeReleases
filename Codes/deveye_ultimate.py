@@ -290,6 +290,20 @@ class DataManager:
                     fs = 13
                 data["settings"]["font_size"] = fs if fs >= 8 else 13
 
+                # Sync 'run_on_startup' with actual Windows Registry state
+                if sys.platform == "win32":
+                    try:
+                        import winreg
+                        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+                        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ) as key:
+                            try:
+                                winreg.QueryValueEx(key, "DevEyeUltimate")
+                                data["settings"]["run_on_startup"] = True
+                            except FileNotFoundError:
+                                data["settings"]["run_on_startup"] = False
+                    except Exception:
+                        pass # Fail silently if registry access fails
+
                 return data
         except (json.JSONDecodeError, IOError) as e:
             # Backup corrupt file before resetting to prevent data loss
