@@ -9,6 +9,12 @@ try:
     import winsound
 except ImportError:
     winsound = None
+
+if sys.platform == "win32":
+    import winreg
+else:
+    winreg = None
+
 try:
     import pyttsx3
 except ImportError:
@@ -249,8 +255,10 @@ class DataManager:
                 "custom_sound_file": "",
                 "mini_player_x": None,
                 "mini_player_y": None,
-                "text_to_speech": False
+                "text_to_speech": False,
+                "run_on_startup": False
             }
+
         }
 
     @staticmethod
@@ -781,7 +789,11 @@ class SettingsDialog(QDialog):
         self.session_label_check = QCheckBox("Show Focus Tag Prompt")
         self.session_label_check.setChecked(self.settings.get("show_session_label", True))
 
+        self.startup_run_check = QCheckBox("Run on System Startup")
+        self.startup_run_check.setChecked(self.settings.get("run_on_startup", False))
+
         self.after_break_combo = QComboBox()
+
         self.after_break_combo.addItems(["Auto Restart", "Ask Every Time"])
         self.after_break_combo.setCurrentText(self.settings.get("after_break_flow", "Auto Restart"))
 
@@ -790,7 +802,9 @@ class SettingsDialog(QDialog):
         bl.addWidget(self.resume_check)
         bl.addWidget(self.startup_check)
         bl.addWidget(self.session_label_check)
+        bl.addWidget(self.startup_run_check)
         bl.addWidget(QLabel("After Break:"))
+
         bl.addWidget(self.after_break_combo)
 
         idle_grp = QGroupBox("IDLE DETECTION")
@@ -984,8 +998,10 @@ class SettingsDialog(QDialog):
             "show_eye_tips": self.tips_check.isChecked(),
             "show_affirmations": self.affirm_check.isChecked(),
             "custom_break_msg": self.msg_input.text(),
-            "text_to_speech": self.tts_check.isChecked()
+            "text_to_speech": self.tts_check.isChecked(),
+            "run_on_startup": self.startup_run_check.isChecked()
         }
+
 
     def update_sound_controls(self, mode):
         is_custom = mode == "Custom Audio File"
@@ -1788,12 +1804,44 @@ class DevEyeApp(QMainWindow):
             self.update_timer_display()    
             self.update_daily_goal()
             
+            if self.data["settings"].get("run_on_startup", False) != previous_settings.get("run_on_startup", False):
+                self.toggle_startup(self.data["settings"].get("run_on_startup", False))
+            
             if self.data["settings"].get("strict_mode", False) and self.current_phase == "focus":
                 self.btn_pause.setDisabled(not self.is_paused)
                 self.btn_force_break.setDisabled(True)
             else:
                 self.btn_pause.setDisabled(False)
                 self.btn_force_break.setDisabled(False)
+
+    def toggle_startup(self, enabled):
+        if winreg is None:
+            return
+        
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        app_name = "DevEyeUltimate"
+        
+        # Determine the command to run
+        if getattr(sys, 'frozen', False):
+            # Running as EXE
+            cmd = f'"{sys.executable}"'
+        else:
+            # Running as script
+            cmd = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE)
+            if enabled:
+                winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, cmd)
+            else:
+                try:
+                    winreg.DeleteValue(key, app_name)
+                except FileNotFoundError:
+                    pass
+            winreg.CloseKey(key)
+        except Exception as e:
+            QMessageBox.warning(self, "Startup Error", f"Failed to modify startup settings: {e}")
+
 
     def update_stats(self):
         accent = self.get_theme_colors()["accent"]

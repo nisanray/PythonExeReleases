@@ -787,6 +787,7 @@ class MainWindow(QMainWindow):
         if self.hotkey_listener:
             self.hotkey_listener.stop()
         event.accept()
+###
 
 # ==========================================
 # 6. Entry point

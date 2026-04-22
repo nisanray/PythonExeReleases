@@ -26,6 +26,7 @@ try:
     QR_AVAILABLE = True
 except ImportError:
     QR_AVAILABLE = False
+###
 
 # -------------------------------------------------------------------------
 # Part 1: Shared Utilities & Config

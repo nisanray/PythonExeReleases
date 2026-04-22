@@ -90,6 +90,7 @@ class NetOverlay(QWidget):
         self.timer.setInterval(self.refresh_ms)
         self.timer.timeout.connect(self.update_speeds)
         self.timer.start()
+###
 
     def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)

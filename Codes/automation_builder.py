@@ -83,7 +83,7 @@ def lock_workstation():
             logging.warning(f"Workstation locking not supported on platform: {sys.platform}")
     except Exception as e:
         logging.error(f"Failed to lock workstation: {e}")
-
+###
 # ---- Model for a sequence step ----
 class Step:
     def __init__(self, action: str, params: dict, delay: float = 0.5, note: str = ""):

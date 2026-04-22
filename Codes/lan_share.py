@@ -25,6 +25,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+###
 
 # HTML Template
 HTML_TEMPLATE = """ 

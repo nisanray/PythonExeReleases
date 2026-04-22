@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QMessageBox, QFrame, QCheckBox)
 from PyQt6.QtCore import QTimer, QTime, Qt
 from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QCursor
+###
 
 class LockScheduler(QMainWindow):
     def __init__(self):
