@@ -67,6 +67,17 @@ A high-performance visual automation engine. Build, manage, and execute complex 
 - **V6 Stabilization**: Improved signal handling, emergency stop (F12), and comprehensive built-in documentation.
 - **Cross-Platform**: Designed for Windows but built with portable logic for future expansions.
 
+### 🤖 Git AI Automation
+An AI-powered Git assistant that generates intelligent commit messages using local Ollama models. Features a PyQt6 GUI for managing commits with file grouping and custom prompts.
+
+**Features:**
+- **AI Commit Messages**: Uses local Ollama (llama3, etc.) to generate concise commit messages from git diffs
+- **File Grouping**: Group related files together for logical commits
+- **Custom Prompts**: Define custom AI prompts for specific commit scenarios
+- **Delayed Commits**: Schedule commits with a timer for batch operations
+- **Real-time Logs**: Console and file logging for debugging
+- **Modern GUI**: PyQt6 interface with repo selection and commit management
+
 ### 🤖 Facebook Unsave Automation Bot
 An advanced image-based automation bot with a PyQt6 GUI. Uses screen image recognition to automate repetitive two-step click workflows (e.g., unsaving Facebook posts).
 
