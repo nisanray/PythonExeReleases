@@ -430,6 +430,9 @@ class SessionLabelDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Focus Tag")
         self.setFixedSize(340, 140)
+        # Keep this prompt visible above other windows.
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        self.setWindowModality(Qt.WindowModality.ApplicationModal)
         layout = QVBoxLayout(self)
         
         layout.addWidget(QLabel("Tag this focus session (optional):"))
@@ -452,6 +455,12 @@ class SessionLabelDialog(QDialog):
 
     def get_label(self):
         return self.edit.text().strip()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Force focus/stacking when launched during Windows startup.
+        self.raise_()
+        self.activateWindow()
 
 
 class FocusGraphWidget(QWidget):
