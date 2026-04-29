@@ -111,6 +111,7 @@ class MonitorThread(QThread):
                 elif self.mode == 'quota': self._check_quota()
                 elif self.mode == 'focus_kill': self._check_focus_kill()
                 elif self.mode == 'vpn': self._check_vpn()
+                elif self.mode == 'internet': self._check_internet()
                 elif self.mode == 'honeypot': self._check_honeypot()
             except Exception as e:
                 self.tick.emit(f"Error: {str(e)}")
@@ -339,6 +340,16 @@ class MonitorThread(QThread):
             self._trigger_event(instant=True)
         else:
             self.tick.emit(f"Monitoring VPN/Adapter: '{self.target}'... (Secured)")
+
+    def _check_internet(self):
+        try:
+            import socket
+            socket.setdefaulttimeout(3)
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
+            self.tick.emit("Internet Connection: Online")
+        except:
+            self.tick.emit("Internet Connection: OFFLINE! Initiating shutdown...")
+            self._trigger_event(grace_period=self.target)
 
     def _check_honeypot(self):
         if not os.path.exists(self.target):
@@ -622,13 +633,25 @@ class MainWindow(QMainWindow):
         l_dl.addStretch()
         self.tabs.addTab(self.tab_dl, "Download Monitor")
 
-        # Tab 9: USB Kill Switch
+        # Tab 9: Internet Monitor
+        self.tab_internet = QWidget()
+        l_internet = QVBoxLayout(self.tab_internet)
+        h9 = QHBoxLayout(); h9.addWidget(QLabel("<i>Internet Check: Triggers when connection is lost.</i>")); 
+        b9 = QPushButton("?"); b9.setFixedSize(25, 25); b9.clicked.connect(lambda: self.show_tab_help("Internet Monitor", "Monitors internet connectivity and triggers action when connection is lost.", "Set to shut down PC if internet goes offline - useful for downloads or remote access scenarios.")); h9.addWidget(b9)
+        l_internet.addLayout(h9)
+        l_internet.addWidget(QLabel("Grace period before action (seconds):"))
+        self.spin_internet_grace = QSpinBox(); self.spin_internet_grace.setRange(0, 300); self.spin_internet_grace.setValue(10)
+        l_internet.addWidget(self.spin_internet_grace)
+        l_internet.addStretch()
+        self.tabs.addTab(self.tab_internet, "Internet Monitor")
+
+        # Tab 10: USB Kill Switch
         self.tab_usb = QWidget()
         l_usb = QVBoxLayout(self.tab_usb)
         if HAS_PSUTIL:
-            h9 = QHBoxLayout(); h9.addWidget(QLabel("<i>Physical Safety: Triggers on USB pull.</i>")); 
-            b9 = QPushButton("?"); b9.setFixedSize(25, 25); b9.clicked.connect(lambda: self.show_tab_help("USB Kill Switch", "Physical hardware security. Action triggers if your selected USB key is unplugged.", "Pull a secret USB key to lock the PC instantly whenever you leave your desk.")); h9.addWidget(b9)
-            l_usb.addLayout(h9)
+            h10 = QHBoxLayout(); h10.addWidget(QLabel("<i>Physical Safety: Triggers on USB pull.</i>")); 
+            b10 = QPushButton("?"); b10.setFixedSize(25, 25); b10.clicked.connect(lambda: self.show_tab_help("USB Kill Switch", "Physical hardware security. Action triggers if your selected USB key is unplugged.", "Pull a secret USB key to lock the PC instantly whenever you leave your desk.")); h10.addWidget(b10)
+            l_usb.addLayout(h10)
             l_usb.addWidget(QLabel("Trigger if unplugged:"))
             self.combo_usb = QComboBox(); self.combo_usb.addItems([p.mountpoint for p in psutil.disk_partitions()])
             l_usb.addWidget(self.combo_usb)
@@ -636,7 +659,7 @@ class MainWindow(QMainWindow):
         l_usb.addStretch()
         self.tabs.addTab(self.tab_usb, "USB Kill Switch")
 
-        # Tab 10: Intrusion Trap
+        # Tab 11: Intrusion Trap
         self.tab_intrude = QWidget()
         l_intrude = QVBoxLayout(self.tab_intrude)
         h10 = QHBoxLayout(); h10.addWidget(QLabel("<i>Security: Triggers if anyone touches your PC.</i>")); 
@@ -805,6 +828,7 @@ class MainWindow(QMainWindow):
             <li><b>VPN Shield:</b> Secures system if your VPN connection drops.</li>
             <li><b>Wi-Fi Monitor:</b> Triggers if you leave your trusted network.</li>
             <li><b>Download Monitor:</b> Triggers when your internet traffic stops.</li>
+            <li><b>Internet Monitor:</b> Triggers when internet connection is lost.</li>
             <li><b>USB Kill Switch:</b> Triggers if the selected USB drive is pulled.</li>
             <li><b>Intrusion Trap:</b> Triggers if any mouse/keyboard input is detected.</li>
             <li><b>Armed Jiggler:</b> A decoy trap that detects unauthorized mouse usage.</li>
@@ -878,7 +902,7 @@ class MainWindow(QMainWindow):
 
     def start_monitoring(self):
         tab_idx = self.tabs.currentIndex()
-        if tab_idx >= 13: 
+        if tab_idx >= 14: 
             QMessageBox.information(self, "Info", "This tab contains an interactive tool. Use the dedicated button above to activate it.")
             return
             
@@ -908,12 +932,14 @@ class MainWindow(QMainWindow):
         elif tab_idx == 8:
             mode = 'network'; target = self.spin_net.value()
         elif tab_idx == 9:
-            mode = 'usb'; target = self.combo_usb.currentText()
+            mode = 'internet'; target = self.spin_internet_grace.value()
         elif tab_idx == 10:
-            mode = 'intrusion'; target = self.spin_trap_delay.value()
+            mode = 'usb'; target = self.combo_usb.currentText()
         elif tab_idx == 11:
-            mode = 'jiggler_trap'; target = None
+            mode = 'intrusion'; target = self.spin_trap_delay.value()
         elif tab_idx == 12:
+            mode = 'jiggler_trap'; target = None
+        elif tab_idx == 13:
             if not self.txt_honeypot.text(): return QMessageBox.warning(self,"Error","Select a dummy file.")
             mode = 'honeypot'; target = self.txt_honeypot.text()
 
