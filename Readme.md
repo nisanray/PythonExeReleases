@@ -70,6 +70,11 @@ A high-performance visual automation engine. Build, manage, and execute complex 
 #### Updated Source Variant
 The `Codes/automation_builder_updated.py` file is the newer in-repo source variant of the Automation Builder. It keeps the same overall workflow but includes a more polished step editor, expanded automation step types, per-run logging, and clearer sequence management for local development and testing.
 
+**V6.x additions:**
+- **Session Memory**: Remembers the last opened `.json` sequence and auto-opens it on the next launch (stored via `QSettings` under `PyCHS/AutomationBuilder`, with a `Codes/.last_session.json` fallback). `File → New` clears the remembered path so a fresh session starts blank.
+- **Ctrl+S Quick Save**: Global keyboard shortcut for fast saving of the current sequence.
+- **Per-Run Logs**: Every execution drops a timestamped log inside `Codes/run_logs/` for later inspection.
+
 ### 🤖 Git AI Automation
 An AI-powered Git assistant that generates intelligent commit messages using local Ollama models. Features a PyQt6 GUI for managing commits with file grouping and custom prompts.
 

@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QDialog, QComboBox, QFileDialog, QLineEdit, QDoubleSpinBox, QListWidgetItem,
     QFormLayout, QGroupBox, QSizePolicy, QGridLayout, QTextEdit, QStyleFactory
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QPropertyAnimation, QEasingCurve, QSettings
 from PyQt6.QtGui import QKeySequence, QFont, QCursor, QPalette, QPixmap
 
 try:
@@ -642,6 +642,110 @@ class CoordsOverlay(QDialog):
 class MainWindow(QMainWindow):
     status_update = pyqtSignal(str)
 
+    SETTINGS_LAST_FILE = "lastOpenedFile"
+    SETTINGS_GEOMETRY = "windowGeometry"
+
+    @staticmethod
+    def get_settings():
+        try:
+            return QSettings("PyCHS", "AutomationBuilder")
+        except Exception as e:
+            logging.warning(f"QSettings unavailable, falling back to manual config: {e}")
+            return None
+
+    @staticmethod
+    def save_last_file_path(path: str):
+        try:
+            s = MainWindow.get_settings()
+            if s is not None:
+                s.setValue(MainWindow.SETTINGS_LAST_FILE, path)
+                s.sync()
+            else:
+                # Fallback: write to a small JSON config file next to the script
+                cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_session.json")
+                with open(cfg, "w", encoding="utf-8") as f:
+                    json.dump({"lastOpenedFile": path}, f)
+        except Exception as e:
+            logging.error(f"Failed to save last opened file path: {e}")
+
+    @staticmethod
+    def load_last_file_path() -> str:
+        try:
+            s = MainWindow.get_settings()
+            if s is not None:
+                val = s.value(MainWindow.SETTINGS_LAST_FILE, "", type=str)
+                if val:
+                    return val
+            # Fallback
+            cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_session.json")
+            if os.path.exists(cfg):
+                with open(cfg, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data.get("lastOpenedFile", "") or ""
+        except Exception as e:
+            logging.warning(f"Could not load last opened file path: {e}")
+        return ""
+
+    @staticmethod
+    def clear_last_file_path():
+        try:
+            s = MainWindow.get_settings()
+            if s is not None:
+                s.remove(MainWindow.SETTINGS_LAST_FILE)
+                s.sync()
+            cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_session.json")
+            if os.path.exists(cfg):
+                try: os.remove(cfg)
+                except: pass
+        except Exception as e:
+            logging.warning(f"Failed to clear last opened file path: {e}")
+
+    def _remember_filename(self, path: str):
+        """Persist filename (or clear when None)."""
+        if path:
+            MainWindow.save_last_file_path(path)
+        else:
+            MainWindow.clear_last_file_path()
+
+    def try_auto_open_last_file(self):
+        """Silently reload the last opened file if it still exists on disk."""
+        try:
+            last = MainWindow.load_last_file_path()
+            if not last:
+                return False
+            if not os.path.exists(last):
+                logging.info(f"Previous file no longer exists: {last}")
+                return False
+            with open(last, "r", encoding='utf-8') as f:
+                data = json.load(f)
+
+            if isinstance(data, list):
+                self.steps = [Step.from_dict(s) for s in data]
+                self.start_delay_spin.setValue(0)
+                self.reverse_checkbox.setChecked(False)
+                self.loop_times_spin.setValue(0)
+                self.lock_after_spin.setValue(0)
+            elif isinstance(data, dict):
+                settings = data.get("settings", {})
+                self.start_delay_spin.setValue(settings.get("start_delay", 0))
+                self.reverse_checkbox.setChecked(settings.get("reverse", False))
+                self.loop_times_spin.setValue(settings.get("loop_times", 0))
+                self.lock_after_spin.setValue(settings.get("lock_after", 0))
+                self.steps = [Step.from_dict(s) for s in data.get("steps", [])]
+            else:
+                logging.warning("Unrecognized file format on auto-open.")
+                return False
+
+            self.filename = last
+            self.refresh_steps()
+            self.update_window_title()
+            self.status_update.emit(f"Auto-loaded: {os.path.basename(last)}")
+            logging.info(f"Auto-opened last sequence: {last}")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to auto-open last sequence: {e}")
+            return False
+
     def __init__(self):
         super().__init__()
         try:
@@ -664,6 +768,7 @@ class MainWindow(QMainWindow):
             
             self.status_update.connect(self.set_status)
             self.update_window_title()
+            self.try_auto_open_last_file()
             logging.info("Application started.")
         except Exception as e:
             logging.error(f"Failed to initialize MainWindow: {e}")
@@ -1008,6 +1113,7 @@ class MainWindow(QMainWindow):
             self.lock_after_spin.setValue(0)
             self.refresh_steps()
             self.update_window_title()
+            self._remember_filename(None)
         except Exception as e:
             logging.error(f"Error creating new file: {e}")
             QMessageBox.critical(self, "Error", f"Failed to create new file: {e}")
@@ -1038,7 +1144,8 @@ class MainWindow(QMainWindow):
                     self.steps = [Step.from_dict(s) for s in data.get("steps", [])]
 
                 # Keep absolute path in filename for proper Ctrl+S saving logic
-                self.filename = fname 
+                self.filename = fname
+                self._remember_filename(fname)
                 self.refresh_steps()
                 self.update_window_title()
         except Exception as e:
@@ -1063,6 +1170,7 @@ class MainWindow(QMainWindow):
             
             with open(self.filename, "w", encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
+            self._remember_filename(self.filename)
             self.status_update.emit(f"Saved {os.path.basename(self.filename)}")
             self.update_window_title()
         except Exception as e:

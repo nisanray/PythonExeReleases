@@ -175,3 +175,7 @@ $RECYCLE.BIN/
 # Local Data and Logs
 deveye_data.json
 automation.log
+run_logs/
+Codes/run_logs/
+*.last_session.json
+Codes/*.last_session.json
