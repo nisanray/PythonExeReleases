@@ -67,6 +67,9 @@ A high-performance visual automation engine. Build, manage, and execute complex 
 - **V6 Stabilization**: Improved signal handling, emergency stop (F12), and comprehensive built-in documentation.
 - **Cross-Platform**: Designed for Windows but built with portable logic for future expansions.
 
+#### Updated Source Variant
+The `Codes/automation_builder_updated.py` file is the newer in-repo source variant of the Automation Builder. It keeps the same overall workflow but includes a more polished step editor, expanded automation step types, per-run logging, and clearer sequence management for local development and testing.
+
 ### 🤖 Git AI Automation
 An AI-powered Git assistant that generates intelligent commit messages using local Ollama models. Features a PyQt6 GUI for managing commits with file grouping and custom prompts.
 
@@ -94,13 +97,32 @@ An advanced image-based automation bot with a PyQt6 GUI. Uses screen image recog
 ### ⚡ PowerFlow Advanced System Manager
 A comprehensive Windows system utility that combines performance monitoring, security traps, and automated power management into one powerful interface.
 
-**Features:**
-- **Smart Scheduling**: Timer-based and'exact time' shutdown/restart/lock tasks.
-- **Security Traps**: Armed Jiggler (decoy movement detector), Intrusion Trap (input detector), and Ransomware Honeypot (file change detector).
-- **Physical & Network Safety**: VPN/Wi-Fi connection shields and USB Kill Switch.
-- **Productivity Tools**: App Quota (usage limits), Focus Mode (instantly kills forbidden apps), and Mouse Jiggler (stay-awake).
-- **Resource Protection**: CPU/Thermal sustained load monitor and Battery Savior for laptops.
-- **Stealth Mode**: Screen Shield (transparent lock) and Fake Windows Update decoy screens.
+**Monitoring Tools:**
+- **Timer**: Countdown timer that triggers after the set minutes pass (e.g., set to 60m before bed to shut down PC after falling asleep)
+- **Exact Time**: Schedule action at a specific clock time (24h format) - useful for scheduled restarts
+- **App Quota**: Limits total uptime for a specific application - track and limit gaming or social media usage
+- **Focus Mode**: Instantly closes forbidden apps as they are launched - block distractions while studying
+- **CPU Monitor**: Triggers if CPU usage remains above a threshold for a sustained period - prevent overheating during long renders
+- **Battery Savior**: Triggers when battery drops below threshold while unplugged - auto-hibernate to save work
+- **VPN Shield**: Privacy protection that triggers immediately if your selected VPN connection drops
+- **Wi-Fi Monitor**: Security for public areas - triggers if your laptop leaves your trusted network range (with Coffee Shop Mode for loud siren alarm)
+- **Download Monitor**: Triggers when network speed falls below a threshold (meaning download task is finished)
+- **Internet Monitor**: Monitors internet connectivity and triggers action when connection is lost - useful for automated shutdown scenarios
+- **USB Kill Switch**: Physical hardware security - action triggers if your selected USB key is unplugged
+- **Intrusion Trap**: Silent security that sets a trap triggering if any mouse/keyboard input is detected
+- **Armed Jiggler**: A decoy stay-awake trap - if a real person moves the mouse away from its 2-pixel pattern, it triggers
+- **Ransomware Honeypot**: Anti-ransomware protection - triggers if a decoy file is modified or deleted
+
+**Interactive Security Tools:**
+- **Screen Shield**: Semi-transparent lock overlay requiring PIN to unlock
+- **Fake Update**: Decoy Windows Update screen requiring PIN to unlock
+- **Mouse Jiggler**: Standard utility to prevent PC from automatically sleeping
+- **Panic Button**: Global hotkey to mute audio, hide windows, and launch Fake Update screen instantly
+
+**Configurable Actions:**
+- Shutdown, Restart, Sleep, Hibernate, Lock, Sign Out, or Close Target App Only
+- Force action option to close apps instantly
+- Grace period countdown with abort capability before action executes
 
 ### 👁️ DevEye Ultimate
 A professional eye-care and productivity timer designed to prevent eye strain during long coding sessions.
@@ -131,6 +153,7 @@ PythonExeReleases/
 ├── Codes/
 │   ├── Internet_Speed_Meter.py      # Internet Speed Meter overlay
 │   ├── automation_builder.py        # PyCHS Automation Builder (V6)
+│   ├── automation_builder_updated.py # Updated Automation Builder source variant
 │   ├── deveye_ultimate.py           # DevEye Ultimate productivity tool
 │   ├── git_ai_autmation.py          # Git AI Automation tool
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
@@ -202,16 +225,17 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 
 3. Run any application:
     ```bash
-    python Codes/Internet_Speed_Meter.py
-    python Codes/automation_builder.py
-    python Codes/lock_scheduler_gui.py
-    python Codes/lan_share.py
-    python Codes/lan_chat_file_share.py
-    python Codes/yt_download.py
-    python Codes/unsave_facebook.py
-    python Codes/powerflow_advanced_system_manager.py
-    python Codes/deveye_ultimate.py
-    ```
+   python Codes/Internet_Speed_Meter.py
+   python Codes/automation_builder.py
+   python Codes/lock_scheduler_gui.py
+   python Codes/lan_share.py
+   python Codes/lan_chat_file_share.py
+   python Codes/yt_download.py
+   python Codes/unsave_facebook.py
+   python Codes/powerflow_advanced_system_manager.py
+   python Codes/deveye_ultimate.py
+   python Codes/automation_builder_updated.py
+   ```
 
 ## Manual Build
 
@@ -228,6 +252,7 @@ pyinstaller --onefile --windowed Codes/yt_download.py
 pyinstaller --onefile --windowed Codes/unsave_facebook.py
 pyinstaller --onefile --windowed Codes/powerflow_advanced_system_manager.py
 pyinstaller --onefile --windowed Codes/deveye_ultimate.py
+pyinstaller --onefile --windowed Codes/automation_builder_updated.py
 ```
 
 ## System Requirements
