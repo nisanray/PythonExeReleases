@@ -381,7 +381,7 @@ class UnifiedStepDialog(QDialog):
             step_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
             
             self.delay_spin = QDoubleSpinBox()
-            self.delay_spin.setRange(0, 30)
+            self.delay_spin.setRange(0, 9999)
             self.delay_spin.setSingleStep(0.1)
             self.delay_spin.setValue(self.existing.delay if self.existing else 0.5)
             
@@ -501,7 +501,7 @@ class KeyPressDialog(QDialog):
         step_group = QGroupBox("Step Settings")
         step_form = QFormLayout(step_group)
         self.delay_spin = QDoubleSpinBox()
-        self.delay_spin.setRange(0, 30); self.delay_spin.setSingleStep(0.1)
+        self.delay_spin.setRange(0, 9999); self.delay_spin.setSingleStep(0.1)
         self.delay_spin.setValue(self.existing.delay if self.existing else 0.5)
         
         self.note_edit = QLineEdit(self.existing.note if self.existing else "")
