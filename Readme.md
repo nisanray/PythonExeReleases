@@ -49,13 +49,30 @@ A comprehensive LAN messenger and file sharing tool. It combines a Flask-based w
 - **Video/Image Preview**: In-chat previews for shared media
 
 ### 🎬 YouTube Video Downloader
-A desktop tool to download YouTube videos or audio with quick presets and progress tracking.
+A lightweight desktop tool to download YouTube videos or audio with quick presets and progress tracking.
 
 **Features:**
 - Choose best available, specific resolutions, or audio-only (MP3/M4A)
 - Automatic FFmpeg path validation with saved preferences
 - Estimated size display plus live download progress bar
 - Selectable download directory with recent path recall and logging
+
+### 📺 MediaTube Pro
+A full-featured, modern desktop media downloader with a polished UI, download queue, history, and multi-site support.
+
+**Features:**
+- **Multi-Site Support**: YouTube, Vimeo, Twitch, Dailymotion, SoundCloud
+- **Download Queue**: Add multiple downloads with real-time progress, speed, and ETA tracking
+- **Download History**: Browse, search, and reuse past downloads
+- **Quality Options**: Dynamic format selection with AV1/AVC1 codec preference
+- **Audio Extraction**: MP3 at 320kbps with one-click toggle
+- **Subtitle Embedding**: Optional English subtitle embedding
+- **Concurrent Fragments**: Parallel fragment downloading for faster speeds
+- **Playlist Support**: Automatic playlist folder organization
+- **System Tray**: Minimize to tray with background operation
+- **Settings Panel**: Persistent settings with full configuration
+- **Error Handling**: Detailed messages for bot checks, rate limits, private videos, and network errors
+- **File Logging**: Debug logs saved to `mediatube_debug.log`
 
 ### 🚀 PyCHS Automation Builder (V6 STABLE)
 A high-performance visual automation engine. Build, manage, and execute complex workflows without code using basic inputs and advanced computer vision.
@@ -164,9 +181,11 @@ PythonExeReleases/
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
 │   ├── lan_share.py                 # LAN Share (file upload server)
 │   ├── lock_scheduler_gui.py        # Lock Scheduler application
+│   ├── mediatube_pro.py             # MediaTube Pro (advanced media downloader)
 │   ├── powerflow_advanced_system_manager.py # PowerFlow System Manager
 │   ├── unsave_facebook.py           # Facebook Unsave Automation Bot
-│   └── yt_download.py               # YouTube Video Downloader
+│   ├── youtube_downloader.py        # YouTube Video Downloader (lightweight)
+│   └── ...
 ├── Readme.md                        # This file
 └── .gitignore                       # Git ignore patterns
 ```
@@ -202,7 +221,8 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - [lock_scheduler_gui.exe](../../releases/latest/download/lock_scheduler_gui.exe) - Lock Scheduler Application
 - [lan_share.exe](../../releases/latest/download/lan_share.exe) - LAN Share (File Upload Server)
 - [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
-- [yt_download.exe](../../releases/latest/download/yt_download.exe) - YouTube Video Downloader
+- [youtube_downloader.exe](../../releases/latest/download/youtube_downloader.exe) - YouTube Video Downloader
+- [mediatube_pro.exe](../../releases/latest/download/mediatube_pro.exe) - MediaTube Pro
 - [unsave_facebook.exe](../../releases/latest/download/unsave_facebook.exe) - Facebook Unsave Automation Bot
 - [powerflow_advanced_system_manager.exe](../../releases/latest/download/powerflow_advanced_system_manager.exe) - PowerFlow System Manager
 - [deveye_ultimate.exe](../../releases/latest/download/deveye_ultimate.exe) - DevEye Ultimate
@@ -230,16 +250,17 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 
 3. Run any application:
     ```bash
-   python Codes/Internet_Speed_Meter.py
-   python Codes/automation_builder.py
-   python Codes/lock_scheduler_gui.py
-   python Codes/lan_share.py
-   python Codes/lan_chat_file_share.py
-   python Codes/yt_download.py
-   python Codes/unsave_facebook.py
-   python Codes/powerflow_advanced_system_manager.py
-   python Codes/deveye_ultimate.py
-   python Codes/automation_builder_updated.py
+    python Codes/Internet_Speed_Meter.py
+    python Codes/automation_builder.py
+    python Codes/lock_scheduler_gui.py
+    python Codes/lan_share.py
+    python Codes/lan_chat_file_share.py
+    python Codes/youtube_downloader.py
+    python Codes/mediatube_pro.py
+    python Codes/unsave_facebook.py
+    python Codes/powerflow_advanced_system_manager.py
+    python Codes/deveye_ultimate.py
+    python Codes/automation_builder_updated.py
    ```
 
 ## Manual Build
@@ -253,7 +274,8 @@ pyinstaller --onefile --windowed Codes/automation_builder.py
 pyinstaller --onefile --windowed Codes/lock_scheduler_gui.py
 pyinstaller --onefile --windowed Codes/lan_share.py
 pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
-pyinstaller --onefile --windowed Codes/yt_download.py
+pyinstaller --onefile --windowed Codes/youtube_downloader.py
+pyinstaller --onefile --windowed Codes/mediatube_pro.py
 pyinstaller --onefile --windowed Codes/unsave_facebook.py
 pyinstaller --onefile --windowed Codes/powerflow_advanced_system_manager.py
 pyinstaller --onefile --windowed Codes/deveye_ultimate.py
