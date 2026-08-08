@@ -74,6 +74,20 @@ A full-featured, modern desktop media downloader with a polished UI, download qu
 - **Error Handling**: Detailed messages for bot checks, rate limits, private videos, and network errors
 - **File Logging**: Debug logs saved to `mediatube_debug.log`
 
+### 🎧 Media Downloader Pro
+A polished, macOS-styled desktop downloader built on yt-dlp + PyQt6. Works with YouTube and any of the 1800+ sites yt-dlp supports.
+
+**Features:**
+- **Queue-Based Manager**: Concurrent downloads with per-item progress tracking
+- **Playlist Item Selection**: Pick specific items from a playlist instead of downloading everything
+- **Subtitle/Thumbnail/Metadata Embedding**: Optional embedding directly into the output file
+- **Format Customization**: Fine-grained control over quality/format selection
+- **Proxy, Rate-Limit & Cookie Support**: For restricted or authenticated content
+- **Persistent Settings & History**: Remembers preferences and past downloads between sessions
+- **System Tray Icon**: Minimize to tray with background operation
+- **Light/Dark macOS-Style Themes**: Big Sur/Sonoma-inspired UI built with custom QSS
+- **Layered Error Handling**: Human-readable diagnostics for common failure cases
+
 ### 🚀 PyCHS Automation Builder (V6 STABLE)
 A high-performance visual automation engine. Build, manage, and execute complex workflows without code using basic inputs and advanced computer vision.
 
@@ -181,6 +195,7 @@ PythonExeReleases/
 │   ├── lan_chat_file_share.py       # LAN Chat & File Share
 │   ├── lan_share.py                 # LAN Share (file upload server)
 │   ├── lock_scheduler_gui.py        # Lock Scheduler application
+│   ├── media_downloader.py          # Media Downloader Pro (macOS-styled yt-dlp downloader)
 │   ├── mediatube_pro.py             # MediaTube Pro (advanced media downloader)
 │   ├── powerflow_advanced_system_manager.py # PowerFlow System Manager
 │   ├── unsave_facebook.py           # Facebook Unsave Automation Bot
@@ -223,6 +238,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
 - [lan_chat_file_share.exe](../../releases/latest/download/lan_chat_file_share.exe) - LAN Chat & File Share
 - [youtube_downloader.exe](../../releases/latest/download/youtube_downloader.exe) - YouTube Video Downloader
 - [mediatube_pro.exe](../../releases/latest/download/mediatube_pro.exe) - MediaTube Pro
+- [media_downloader.exe](../../releases/latest/download/media_downloader.exe) - Media Downloader Pro
 - [unsave_facebook.exe](../../releases/latest/download/unsave_facebook.exe) - Facebook Unsave Automation Bot
 - [powerflow_advanced_system_manager.exe](../../releases/latest/download/powerflow_advanced_system_manager.exe) - PowerFlow System Manager
 - [deveye_ultimate.exe](../../releases/latest/download/deveye_ultimate.exe) - DevEye Ultimate
@@ -257,6 +273,7 @@ Visit the [Releases](../../releases/latest) page to download the latest built ex
     python Codes/lan_chat_file_share.py
     python Codes/youtube_downloader.py
     python Codes/mediatube_pro.py
+    python Codes/media_downloader.py
     python Codes/unsave_facebook.py
     python Codes/powerflow_advanced_system_manager.py
     python Codes/deveye_ultimate.py
@@ -276,6 +293,7 @@ pyinstaller --onefile --windowed Codes/lan_share.py
 pyinstaller --onefile --windowed Codes/lan_chat_file_share.py
 pyinstaller --onefile --windowed Codes/youtube_downloader.py
 pyinstaller --onefile --windowed Codes/mediatube_pro.py
+pyinstaller --onefile --windowed Codes/media_downloader.py
 pyinstaller --onefile --windowed Codes/unsave_facebook.py
 pyinstaller --onefile --windowed Codes/powerflow_advanced_system_manager.py
 pyinstaller --onefile --windowed Codes/deveye_ultimate.py
