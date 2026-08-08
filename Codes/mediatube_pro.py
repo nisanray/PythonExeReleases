@@ -2726,15 +2726,19 @@ class MainWindow(QMainWindow):
             self._s_ffmpeg.setText(self.ffmpeg_input.text())
 
     def closeEvent(self, event):
-        self._save_settings()
-        if self._tray_available and self._tray_icon and self._tray_icon.isVisible():
+        reply = QMessageBox.question(
+            self, "Exit MediaTube Pro",
+            "Are you sure you want to close MediaTube Pro?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
             event.ignore()
-            self.hide()
-            self._tray_icon.showMessage("MediaTube Pro", "App is running in the background. Right-click the tray icon to completely exit.",
-                                        QSystemTrayIcon.MessageIcon.Information, 4000)
-        else:
-            app_logger.info("MediaTube Pro shutting down...")
-            QApplication.quit()
+            return
+        self._save_settings()
+        app_logger.info("MediaTube Pro shutting down...")
+        event.accept()
+        QApplication.quit()
 
     def _setup_tray(self):
         self._tray_available = QSystemTrayIcon.isSystemTrayAvailable()

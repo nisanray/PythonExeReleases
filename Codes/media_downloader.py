@@ -21,8 +21,10 @@ import re
 import json
 import time
 import shutil
+import colorsys
 import traceback
 import subprocess
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -37,15 +39,15 @@ from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QTabWidget,
     QGroupBox, QFormLayout, QSplitter, QToolButton, QMenu, QSystemTrayIcon,
     QStyle, QStatusBar, QFrame, QSizePolicy, QDialog, QDialogButtonBox,
-    QPlainTextEdit, QScrollArea, QListWidget, QListWidgetItem
+    QPlainTextEdit, QScrollArea, QListWidget, QListWidgetItem, QStackedWidget
 )
 from PyQt6.QtGui import (
     QFont, QIcon, QAction, QColor, QPalette, QDragEnterEvent, QDropEvent,
-    QFontDatabase, QPixmap
+    QFontDatabase, QPixmap, QPainter, QPolygon
 )
 from PyQt6.QtCore import (
     Qt, QThread, pyqtSignal, QObject, QRunnable, QThreadPool, QSettings,
-    QTimer, QSize, QMimeData
+    QTimer, QSize, QMimeData, QPoint
 )
 
 APP_ORG = "LocalTools"
@@ -179,6 +181,26 @@ QPushButton#DangerButton:disabled {{
     background-color: #FFC2BD;
     border: 1px solid #FFC2BD;
     color: #FFF3F2;
+}}
+#SegmentedControl {{
+    background-color: #E4E4E7;
+    border-radius: 9px;
+}}
+QPushButton#SegmentButton {{
+    background-color: transparent;
+    border: none;
+    border-radius: 7px;
+    padding: 5px 16px;
+    color: #3A3A3C;
+    font-weight: 500;
+}}
+QPushButton#SegmentButton:checked {{
+    background-color: #FFFFFF;
+    color: #0A84FF;
+    font-weight: 600;
+}}
+QPushButton#SegmentButton:hover:!checked {{
+    background-color: #D6D6DA;
 }}
 QTableWidget {{
     background-color: #FFFFFF;
@@ -386,6 +408,26 @@ QPushButton#DangerButton:disabled {{
     border: 1px solid #7A2B26;
     color: #C99490;
 }}
+#SegmentedControl {{
+    background-color: #1C1C1E;
+    border-radius: 9px;
+}}
+QPushButton#SegmentButton {{
+    background-color: transparent;
+    border: none;
+    border-radius: 7px;
+    padding: 5px 16px;
+    color: #C7C7CC;
+    font-weight: 500;
+}}
+QPushButton#SegmentButton:checked {{
+    background-color: #3A3A3C;
+    color: #2E9BFF;
+    font-weight: 600;
+}}
+QPushButton#SegmentButton:hover:!checked {{
+    background-color: #2A2A2C;
+}}
 QTableWidget {{
     background-color: #1C1C1E;
     border: 1px solid #3A3A3C;
@@ -482,6 +524,163 @@ QMenu::item:selected {{
 """
 
 # ----------------------------------------------------------------------------
+# Accent color customization — the QSS above is written against a "Blue"
+# baseline (macOS's default accent). To support other accent colors we
+# derive hover/pressed/disabled/selection shades from a single base hex at
+# runtime and swap the known baseline tokens for them, mirroring how macOS's
+# own System Settings accent-color picker works.
+# ----------------------------------------------------------------------------
+
+ACCENT_PRESETS = {
+    "Blue": "#0A84FF",
+    "Purple": "#AF52DE",
+    "Pink": "#FF375F",
+    "Red": "#FF453A",
+    "Orange": "#FF9F0A",
+    "Yellow": "#FFD60A",
+    "Green": "#30D158",
+    "Graphite": "#8E8E93",
+}
+
+# The exact baseline tokens the QSS above was written with, per role. Swapping
+# these for a computed variant of the chosen accent recolors the whole theme.
+_ACCENT_BASELINE_TOKENS = {
+    "base": "#0A84FF",
+    "hover_light": "#1A8CFF",
+    "hover_dark": "#2E9BFF",
+    "pressed": "#006FE0",
+    "disabled_bg_light": "#B9DBFF",
+    "disabled_text_light": "#F0F6FF",
+    "disabled_bg_dark": "#1B4D80",
+    "disabled_text_dark": "#7FAFDD",
+    "selection_light": "#D6E9FF",
+    "selection_dark": "#0A3D66",
+}
+
+
+def _hex_to_rgb(h: str) -> tuple:
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _rgb_to_hex(rgb: tuple) -> str:
+    return "#{:02X}{:02X}{:02X}".format(*(max(0, min(255, round(c))) for c in rgb))
+
+
+def _shade(hex_color: str, lightness_delta: float, saturation_scale: float = 1.0) -> str:
+    """Shifts a hex color's lightness by lightness_delta (-1..1) and scales
+    its saturation, staying in the same hue — used to derive hover/pressed/
+    disabled variants from a single accent base color."""
+    r, g, b = (c / 255 for c in _hex_to_rgb(hex_color))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    l = max(0.0, min(1.0, l + lightness_delta))
+    s = max(0.0, min(1.0, s * saturation_scale))
+    r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+    return _rgb_to_hex((r2 * 255, g2 * 255, b2 * 255))
+
+
+def _accent_variants(base_hex: str) -> dict:
+    return {
+        "base": base_hex,
+        "hover_light": _shade(base_hex, +0.08),
+        "hover_dark": _shade(base_hex, +0.14),
+        "pressed": _shade(base_hex, -0.12),
+        "disabled_bg_light": _shade(base_hex, +0.34, saturation_scale=0.55),
+        "disabled_text_light": _shade(base_hex, +0.42, saturation_scale=0.35),
+        "disabled_bg_dark": _shade(base_hex, -0.28, saturation_scale=0.65),
+        "disabled_text_dark": _shade(base_hex, +0.10, saturation_scale=0.45),
+        "selection_light": _shade(base_hex, +0.36, saturation_scale=0.45),
+        "selection_dark": _shade(base_hex, -0.30, saturation_scale=0.70),
+    }
+
+
+def build_themed_qss(theme: str, accent_name: str) -> str:
+    """Returns the light or dark stylesheet, recolored for the chosen accent."""
+    qss = DARK_QSS if theme == "Dark" else LIGHT_QSS
+    accent_hex = ACCENT_PRESETS.get(accent_name, ACCENT_PRESETS["Blue"])
+    if accent_hex == ACCENT_PRESETS["Blue"]:
+        return qss  # already the baseline — no substitution needed
+
+    variants = _accent_variants(accent_hex)
+    for role, baseline_token in _ACCENT_BASELINE_TOKENS.items():
+        qss = qss.replace(baseline_token, variants[role])
+    return qss
+
+
+def make_accent_swatch_icon(hex_color: str, size: int = 14) -> QIcon:
+    """A small filled circle icon used next to each accent color's name in
+    the picker, mirroring macOS's own accent-color swatches."""
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(hex_color))
+    painter.drawEllipse(1, 1, size - 2, size - 2)
+    painter.end()
+    return QIcon(pixmap)
+
+
+def make_app_icon() -> QIcon:
+    """A simple generated app icon (rounded square, accent-colored circle
+    with a download arrow) — keeps the app a single self-contained file
+    with no external image asset to ship or go missing."""
+    size = 128
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+    # Rounded-square backdrop, macOS-app-icon style.
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor("#0A84FF"))
+    painter.drawRoundedRect(4, 4, size - 8, size - 8, 28, 28)
+
+    # White downward arrow into a tray, like a generic "download" glyph.
+    painter.setBrush(QColor("#FFFFFF"))
+    stem_w = 14
+    stem_x = (size - stem_w) // 2
+    painter.drawRect(stem_x, 30, stem_w, 42)
+
+    arrow = [
+        (size // 2 - 24, 66), (size // 2 + 24, 66), (size // 2, 96),
+    ]
+    painter.drawPolygon(QPolygon([QPoint(int(x), int(y)) for x, y in arrow]))
+
+    tray_y = 104
+    painter.drawRoundedRect(28, tray_y, size - 56, 10, 4, 4)
+
+    painter.end()
+    return QIcon(pixmap)
+
+
+# Extra QSS applied on top of the themed stylesheet when the user picks
+# "Compact" layout density in Preferences — tightens padding across the
+# app's controls for people who'd rather see more content at once.
+COMPACT_DENSITY_OVERRIDES = """
+QGroupBox {
+    margin-top: 10px;
+    padding: 8px 6px 6px 6px;
+}
+QGroupBox::title {
+    left: 8px;
+    padding: 0 4px;
+}
+QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox {
+    padding: 3px 6px;
+}
+QPushButton {
+    padding: 4px 10px;
+}
+QTabBar::tab {
+    padding: 5px 12px;
+}
+QMenuBar::item {
+    padding: 3px 8px;
+}
+"""
+
+# ----------------------------------------------------------------------------
 # Data model
 # ----------------------------------------------------------------------------
 
@@ -536,6 +735,7 @@ class DownloadOptions:
     write_info_json: bool = False
     embed_chapters: bool = False
     concurrent_fragments: int = 1
+    socket_timeout: int = 30            # seconds — hard cap so a stalled connection can't hang forever
     date_after: str = ""                # yt-dlp "dateafter" filter, e.g. 20240101
     date_before: str = ""               # yt-dlp "datebefore" filter
     match_filter: str = ""              # raw yt-dlp --match-filter expression
@@ -648,6 +848,35 @@ class WorkerSignals(QObject):
     error = pyqtSignal(int, str, str)                    # uid, short_message, suggestion
 
 
+# ----------------------------------------------------------------------------
+# Child-process tracking — yt-dlp's high-level YoutubeDL().download() call
+# doesn't expose the ffmpeg/ffprobe subprocesses it spawns internally for
+# merging, converting, or embedding. Without tracking those, cancelling a
+# download mid-postprocessing only stops OUR Python code; the ffmpeg
+# process it kicked off keeps running to completion in the background,
+# invisible and unkillable from the UI.
+#
+# subprocess.Popen is wrapped once, process-wide, so every ffmpeg/ffprobe
+# call yt-dlp makes gets recorded. Each worker thread only sees processes
+# it itself spawned (via threading.local), so this is safe with several
+# downloads running concurrently.
+# ----------------------------------------------------------------------------
+
+_popen_tracking_local = threading.local()
+_real_subprocess_popen = subprocess.Popen
+
+
+def _tracked_popen(*args, **kwargs):
+    proc = _real_subprocess_popen(*args, **kwargs)
+    target_list = getattr(_popen_tracking_local, "current_processes", None)
+    if target_list is not None:
+        target_list.append(proc)
+    return proc
+
+
+subprocess.Popen = _tracked_popen  # process-wide, applied once at import time
+
+
 class DownloadRunnable(QRunnable):
     """One queued download, executed on the shared QThreadPool."""
 
@@ -657,10 +886,40 @@ class DownloadRunnable(QRunnable):
         self.ffmpeg_path = ffmpeg_path
         self.signals = WorkerSignals()
         self._cancel_flag = {"cancel": False}
+        self._child_processes: list = []  # ffmpeg/ffprobe processes spawned by this download
         self.setAutoDelete(True)
 
     def cancel(self):
         self._cancel_flag["cancel"] = True
+        self._kill_child_processes()
+
+    def _kill_child_processes(self):
+        """Terminates any ffmpeg/ffprobe process this download has spawned.
+        Called both on explicit cancel and after the download loop exits,
+        so nothing outlives the QRunnable that started it."""
+        for proc in list(self._child_processes):
+            try:
+                if proc.poll() is None:  # still running
+                    proc.terminate()
+            except Exception:  # noqa: BLE001 - best-effort; process may have already exited
+                pass
+
+    def _reap_child_processes(self, timeout: float = 2.0):
+        """After terminate(), give processes a moment to exit gracefully,
+        then force-kill anything still alive. Runs on the worker thread
+        (never the GUI thread), so this brief wait never freezes the UI."""
+        deadline = time.time() + timeout
+        for proc in list(self._child_processes):
+            remaining = max(0.0, deadline - time.time())
+            try:
+                proc.wait(timeout=remaining)
+            except Exception:  # noqa: BLE001 - subprocess.TimeoutExpired or already exited
+                try:
+                    if proc.poll() is None:
+                        proc.kill()
+                        proc.wait(timeout=1.0)  # reap it — SIGKILL can't be caught/ignored
+                except Exception:  # noqa: BLE001
+                    pass
 
     # -- format string construction -----------------------------------
     def _build_format(self, opt: DownloadOptions) -> str:
@@ -812,6 +1071,15 @@ class DownloadRunnable(QRunnable):
             if opt.concurrent_fragments and opt.concurrent_fragments > 1:
                 ydl_opts["concurrent_fragment_downloads"] = opt.concurrent_fragments
 
+            # Hard timeout on every socket operation. Without this, a
+            # connection that stalls mid-request (dead server, dropped
+            # wifi, hung proxy) leaves the worker thread blocked forever —
+            # invisible to Stop/Cancel, since the cancel flag is only
+            # checked between socket calls. This bounds the worst case to
+            # socket_timeout seconds per attempt, after which yt-dlp raises
+            # and our normal retry/error handling takes over.
+            ydl_opts["socket_timeout"] = max(5, opt.socket_timeout)
+
             if opt.rate_limit.strip():
                 ydl_opts["ratelimit"] = self._parse_rate(opt.rate_limit.strip())
 
@@ -824,8 +1092,21 @@ class DownloadRunnable(QRunnable):
             if self.ffmpeg_path.strip():
                 ydl_opts["ffmpeg_location"] = self.ffmpeg_path.strip()
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([self.item.url])
+            # Register this download's process list so any ffmpeg/ffprobe
+            # subprocess yt-dlp spawns on THIS thread gets tracked and can
+            # be killed immediately if cancel() is called mid-postprocessing.
+            _popen_tracking_local.current_processes = self._child_processes
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([self.item.url])
+            finally:
+                _popen_tracking_local.current_processes = None
+                # Belt-and-braces: if cancel() fired while a process was
+                # between poll() checks, make sure nothing is left running
+                # before this worker thread exits.
+                if self._cancel_flag["cancel"]:
+                    self._kill_child_processes()
+                self._reap_child_processes()
 
             if self._cancel_flag["cancel"]:
                 self.signals.status.emit(uid, STATUS_CANCELLED)
@@ -834,12 +1115,24 @@ class DownloadRunnable(QRunnable):
                 self.signals.finished.emit(uid)
 
         except yt_dlp.utils.DownloadCancelled:
+            self._kill_child_processes()
+            self._reap_child_processes()
             self.signals.status.emit(uid, STATUS_CANCELLED)
         except Exception as exc:  # noqa: BLE001 - want to surface any failure gracefully
-            short, suggestion = classify_error(exc)
-            self.signals.log.emit(f"ERROR [{self.item.url}]: {exc}\n{traceback.format_exc()}")
-            self.signals.status.emit(uid, STATUS_ERROR)
-            self.signals.error.emit(uid, short, suggestion)
+            self._kill_child_processes()
+            self._reap_child_processes()
+            if self._cancel_flag["cancel"]:
+                # Killing ffmpeg mid-postprocessing surfaces as a generic
+                # subprocess/exit-code error from yt-dlp's side — but the
+                # user asked for this, so report it as a cancellation, not
+                # a failure.
+                self.signals.log.emit(f"Cancelled [{self.item.url}] (was mid-postprocessing)")
+                self.signals.status.emit(uid, STATUS_CANCELLED)
+            else:
+                short, suggestion = classify_error(exc)
+                self.signals.log.emit(f"ERROR [{self.item.url}]: {exc}\n{traceback.format_exc()}")
+                self.signals.status.emit(uid, STATUS_ERROR)
+                self.signals.error.emit(uid, short, suggestion)
 
     @staticmethod
     def _parse_rate(s: str) -> float:
@@ -900,6 +1193,7 @@ class InfoFetchRunnable(QRunnable):
                 "no_warnings": True,
                 "extract_flat": "in_playlist",
                 "skip_download": True,
+                "socket_timeout": 20,  # info probes should fail fast, never hang the UI
             }
             if self.cookies_from_browser.strip():
                 ydl_opts["cookiesfrombrowser"] = (self.cookies_from_browser.strip(),)
@@ -964,6 +1258,18 @@ class PreferencesDialog(QDialog):
         self.theme_combo.setCurrentText(self.settings.value("theme", "Light"))
         form.addRow("Appearance:", self.theme_combo)
 
+        self.accent_combo = QComboBox()
+        for name, hex_color in ACCENT_PRESETS.items():
+            self.accent_combo.addItem(make_accent_swatch_icon(hex_color), name)
+        self.accent_combo.setCurrentText(self.settings.value("accent_color", "Blue"))
+        form.addRow("Accent color:", self.accent_combo)
+
+        self.density_combo = QComboBox()
+        self.density_combo.addItems(["Comfortable", "Compact"])
+        self.density_combo.setCurrentText(self.settings.value("ui_density", "Comfortable"))
+        self.density_combo.setToolTip("Compact tightens up padding across the app for smaller screens")
+        form.addRow("Layout density:", self.density_combo)
+
         self.ffmpeg_edit = QLineEdit(self.settings.value("ffmpeg_path", ""))
         self.ffmpeg_edit.setPlaceholderText("Leave blank to use FFmpeg from system PATH")
         ffmpeg_browse = QPushButton("Browse…")
@@ -984,7 +1290,12 @@ class PreferencesDialog(QDialog):
         behavior_form.addRow(self.notify_check)
 
         self.tray_check = QCheckBox("Minimize to system tray instead of closing")
-        self.tray_check.setChecked(self.settings.value("minimize_to_tray", "true") == "true")
+        self.tray_check.setToolTip(
+            "Off by default — closing the window fully quits the app and stops "
+            "any active downloads. Turn this on if you'd rather the app keep "
+            "running in the background (e.g. to let a download finish)."
+        )
+        self.tray_check.setChecked(self.settings.value("minimize_to_tray", "false") == "true")
         behavior_form.addRow(self.tray_check)
 
         self.autostart_check = QCheckBox("Automatically start downloads when added to queue")
@@ -1013,6 +1324,8 @@ class PreferencesDialog(QDialog):
         self.settings.setValue("default_folder", self.default_folder_edit.text())
         self.settings.setValue("max_concurrent", self.concurrency_spin.value())
         self.settings.setValue("theme", self.theme_combo.currentText())
+        self.settings.setValue("accent_color", self.accent_combo.currentText())
+        self.settings.setValue("ui_density", self.density_combo.currentText())
         self.settings.setValue("ffmpeg_path", self.ffmpeg_edit.text())
         self.settings.setValue("notify_on_finish", "true" if self.notify_check.isChecked() else "false")
         self.settings.setValue("minimize_to_tray", "true" if self.tray_check.isChecked() else "false")
@@ -1166,6 +1479,7 @@ class MainWindow(QMainWindow):
         self.row_by_uid: dict[int, int] = {}
 
         self.setWindowTitle(APP_DISPLAY_NAME)
+        self.setWindowIcon(make_app_icon())
         self.setMinimumSize(760, 480)
         self._size_to_fit_screen()
         self.setAcceptDrops(True)
@@ -1213,6 +1527,8 @@ class MainWindow(QMainWindow):
         downloads_scroll.setFrameShape(QFrame.Shape.NoFrame)
         downloads_scroll.setWidget(self._build_downloads_tab())
         self.tabs.addTab(downloads_scroll, "Downloads")
+
+        self.queue_tab_index = self.tabs.addTab(self._build_queue_tab(), "Queue")
         self.tabs.addTab(self._build_history_tab(), "History")
 
         self.setStatusBar(QStatusBar())
@@ -1260,7 +1576,14 @@ class MainWindow(QMainWindow):
         options_row.addWidget(self._build_advanced_options_group(), stretch=1)
         layout.addLayout(options_row)
 
-        # Queue table
+        layout.addStretch()
+        return page
+
+    def _build_queue_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setSpacing(10)
+
         queue_group = QGroupBox("Queue")
         queue_layout = QVBoxLayout()
 
@@ -1274,8 +1597,15 @@ class MainWindow(QMainWindow):
         self.queue_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.queue_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.queue_table.verticalHeader().setVisible(False)
-        self.queue_table.setMinimumHeight(220)
-        queue_layout.addWidget(self.queue_table)
+        self.queue_table.setMinimumHeight(280)
+
+        self.queue_empty_state = self._build_queue_empty_state()
+
+        self.queue_stack = QStackedWidget()
+        self.queue_stack.addWidget(self.queue_empty_state)  # index 0
+        self.queue_stack.addWidget(self.queue_table)        # index 1
+        self.queue_stack.setCurrentIndex(0)
+        queue_layout.addWidget(self.queue_stack, stretch=1)
 
         controls_row = QHBoxLayout()
         self.start_btn = QPushButton("Start Queue")
@@ -1285,6 +1615,11 @@ class MainWindow(QMainWindow):
 
         self.stop_btn = QPushButton("Stop All")
         self.stop_btn.setObjectName("DangerButton")
+        self.stop_btn.setToolTip(
+            "Cancels queued items immediately. Active downloads stop as soon as "
+            "their current network operation finishes — bounded by the "
+            "connection timeout in Advanced ▸ Network, so nothing hangs forever."
+        )
         self.stop_btn.clicked.connect(self.on_stop_all)
         self.stop_btn.setEnabled(False)
         controls_row.addWidget(self.stop_btn)
@@ -1317,6 +1652,36 @@ class MainWindow(QMainWindow):
 
         return page
 
+    def _build_queue_empty_state(self) -> QWidget:
+        """Shown in place of the queue table when there's nothing queued —
+        gives new users somewhere to look instead of a blank table."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        icon_label = QLabel("📥")
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setStyleSheet("font-size: 36px; background: transparent;")
+        layout.addWidget(icon_label)
+
+        title_label = QLabel("No downloads yet")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setStyleSheet("font-size: 15px; font-weight: 600; background: transparent;")
+        layout.addWidget(title_label)
+
+        hint_label = QLabel("Paste a URL above and click \"Add to Queue\" to get started.")
+        hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint_label.setStyleSheet("color: #8E8E93; font-size: 12px; background: transparent;")
+        layout.addWidget(hint_label)
+
+        page.setMinimumHeight(220)
+        return page
+
+    def _update_queue_empty_state(self):
+        count = self.queue_table.rowCount()
+        self.queue_stack.setCurrentIndex(1 if count > 0 else 0)
+        self.tabs.setTabText(self.queue_tab_index, f"Queue ({count})" if count else "Queue")
+
     def _build_basic_options_group(self) -> QGroupBox:
         box = QGroupBox("Options")
         form = QFormLayout()
@@ -1324,14 +1689,25 @@ class MainWindow(QMainWindow):
 
         type_row = QHBoxLayout()
         self.type_group = QButtonGroup(self)
-        self.video_radio = QRadioButton("Video")
-        self.audio_radio = QRadioButton("Audio only")
+        self.type_group.setExclusive(True)
+
+        segment_container = QWidget()
+        segment_container.setObjectName("SegmentedControl")
+        segment_layout = QHBoxLayout(segment_container)
+        segment_layout.setContentsMargins(2, 2, 2, 2)
+        segment_layout.setSpacing(0)
+
+        self.video_radio = QPushButton("Video")
+        self.audio_radio = QPushButton("Audio Only")
+        for i, btn in enumerate((self.video_radio, self.audio_radio)):
+            btn.setCheckable(True)
+            btn.setObjectName("SegmentButton")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.type_group.addButton(btn)
+            segment_layout.addWidget(btn)
         self.video_radio.setChecked(True)
-        self.type_group.addButton(self.video_radio)
-        self.type_group.addButton(self.audio_radio)
         self.video_radio.toggled.connect(self._on_media_type_changed)
-        type_row.addWidget(self.video_radio)
-        type_row.addWidget(self.audio_radio)
+        type_row.addWidget(segment_container)
         type_row.addStretch()
         form.addRow("Type:", type_row)
 
@@ -1540,6 +1916,16 @@ class MainWindow(QMainWindow):
         self.concurrent_fragments_spin.setToolTip("Download multiple fragments of the same file in parallel — can speed up single large downloads")
         form.addRow("Concurrent fragments:", self.concurrent_fragments_spin)
 
+        self.socket_timeout_spin = QSpinBox()
+        self.socket_timeout_spin.setRange(5, 300)
+        self.socket_timeout_spin.setValue(30)
+        self.socket_timeout_spin.setSuffix(" sec")
+        self.socket_timeout_spin.setToolTip(
+            "Max time a stalled connection is allowed before yt-dlp gives up and "
+            "retries. Keeps a dead connection from hanging the download forever."
+        )
+        form.addRow("Connection timeout:", self.socket_timeout_spin)
+
         return page
 
     def _build_files_tab(self) -> QWidget:
@@ -1629,7 +2015,7 @@ class MainWindow(QMainWindow):
         file_menu = menubar.addMenu("&File")
         add_action = QAction("Add URL…", self)
         add_action.setShortcut("Ctrl+N")
-        add_action.triggered.connect(lambda: (self.url_input.setFocus(),))
+        add_action.triggered.connect(self._focus_url_input)
         file_menu.addAction(add_action)
 
         import_action = QAction("Import URLs from Text File…", self)
@@ -1685,9 +2071,7 @@ class MainWindow(QMainWindow):
         menubar.setCornerWidget(self.theme_toggle_action, Qt.Corner.TopRightCorner)
 
     def _build_tray(self):
-        style = self.style()
-        icon = style.standardIcon(QStyle.StandardPixmap.SP_ArrowDown)
-        self.tray_icon = QSystemTrayIcon(icon, self)
+        self.tray_icon = QSystemTrayIcon(make_app_icon(), self)
         self.tray_icon.setToolTip(APP_DISPLAY_NAME)
 
         tray_menu = QMenu()
@@ -1704,22 +2088,31 @@ class MainWindow(QMainWindow):
             lambda reason: self._restore_from_tray() if reason == QSystemTrayIcon.ActivationReason.Trigger else None
         )
         self.tray_icon.show()
-        self._force_quit_flag = False
 
     def _restore_from_tray(self):
         self.showNormal()
         self.activateWindow()
 
     def _force_quit(self):
-        self._force_quit_flag = True
         self.close()
 
     # -- theme -------------------------------------------------------
     def _apply_theme(self, theme: str):
         app = QApplication.instance()
-        app.setStyleSheet(DARK_QSS if theme == "Dark" else LIGHT_QSS)
+        accent = self.settings.value("accent_color", "Blue")
+        density = self.settings.value("ui_density", "Comfortable")
+
+        qss = build_themed_qss(theme, accent)
+        if density == "Compact":
+            qss += COMPACT_DENSITY_OVERRIDES
+        app.setStyleSheet(qss)
+
         self.theme_toggle_action.setText("☀️" if theme == "Dark" else "🌙")
         self.settings.setValue("theme", theme)
+
+        # Keep the "Downloading" status color in the queue table in sync
+        # with the chosen accent instead of staying hardcoded blue.
+        STATUS_COLORS_LIGHT[STATUS_DOWNLOADING] = ACCENT_PRESETS.get(accent, ACCENT_PRESETS["Blue"])
 
     def _toggle_theme(self):
         current = self.settings.value("theme", "Light")
@@ -1741,6 +2134,7 @@ class MainWindow(QMainWindow):
                 self._enqueue_url(u)
         if urls:
             self.statusBar().showMessage(f"Added {len(urls)} URL(s) from drop", 4000)
+            self.tabs.setCurrentIndex(self.queue_tab_index)
 
     # -- option gathering ------------------------------------------------
     def _current_options(self) -> DownloadOptions:
@@ -1776,6 +2170,7 @@ class MainWindow(QMainWindow):
             cookies_from_browser=self.cookies_combo.currentText(),
             retries=self.retries_spin.value(),
             concurrent_fragments=self.concurrent_fragments_spin.value(),
+            socket_timeout=self.socket_timeout_spin.value(),
             custom_format=self.custom_format_edit.text().strip(),
             sponsorblock_remove=self.sponsorblock_check.isChecked(),
             write_thumbnail_file=self.write_thumb_check.isChecked(),
@@ -1843,6 +2238,7 @@ class MainWindow(QMainWindow):
         self.url_input.clear()
         if added:
             self.statusBar().showMessage(f"Added {added} item(s) to the queue", 4000)
+            self.tabs.setCurrentIndex(self.queue_tab_index)
             if self.settings.value("auto_start", "false") == "true":
                 self.on_start_queue()
 
@@ -1880,6 +2276,8 @@ class MainWindow(QMainWindow):
         self.queue_table.setItem(row, COLUMN_ETA, QTableWidgetItem(""))
         self.queue_table.setItem(row, COLUMN_SIZE, QTableWidgetItem(""))
 
+        self._update_queue_empty_state()
+
     def _row_for_uid(self, uid: int) -> Optional[int]:
         return self.row_by_uid.get(uid)
 
@@ -1909,9 +2307,21 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Started {len(pending)} download(s)")
 
     def on_stop_all(self):
+        # Drop anything still queued-but-not-started immediately.
+        self.thread_pool.clear()
+        for uid, item in self.queue_items.items():
+            if item.status == STATUS_QUEUED:
+                item.status = STATUS_CANCELLED
+                self._set_status_cell(uid, STATUS_CANCELLED)
+
+        # Signal active downloads to stop at their next checkpoint. Each is
+        # bounded by its connection timeout, so this can never hang.
         for runnable in list(self.runnables.values()):
             runnable.cancel()
-        self.statusBar().showMessage("Stopping all active downloads…")
+
+        self.statusBar().showMessage(
+            "Stopping — active items will halt within their connection timeout window", 5000
+        )
         self.stop_btn.setEnabled(False)
 
     def on_remove_selected(self):
@@ -1934,6 +2344,7 @@ class MainWindow(QMainWindow):
             self.queue_items.pop(uid, None)
             self.runnables.pop(uid, None)
         self._resync_row_indices()
+        self._update_queue_empty_state()
 
     def on_clear_completed(self):
         done_states = (STATUS_COMPLETED, STATUS_CANCELLED, STATUS_ERROR)
@@ -1952,6 +2363,7 @@ class MainWindow(QMainWindow):
             self.runnables.pop(uid, None)
             self.row_by_uid.pop(uid, None)
         self._resync_row_indices()
+        self._update_queue_empty_state()
 
     def _resync_row_indices(self):
         """After removing rows, QTableWidget compacts indices — rebuild our
@@ -2135,6 +2547,10 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage("All items selected", 3000)
 
     # -- misc UI actions -------------------------------------------------
+    def _focus_url_input(self):
+        self.tabs.setCurrentIndex(0)  # Downloads tab
+        self.url_input.setFocus()
+
     def _paste_url(self):
         text = QApplication.clipboard().text()
         if text:
@@ -2162,6 +2578,8 @@ class MainWindow(QMainWindow):
             return
         added = sum(1 for u in lines if self._enqueue_url(u))
         self.statusBar().showMessage(f"Imported {added} URL(s) from file", 4000)
+        if added:
+            self.tabs.setCurrentIndex(self.queue_tab_index)
 
     def _export_history(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export History", "history.json", "JSON Files (*.json)")
@@ -2255,14 +2673,22 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _open_in_file_manager(path: str):
+        """Launches the OS file browser without ever blocking the UI thread.
+        subprocess.run() would wait for the child process to exit — on some
+        Linux setups xdg-open doesn't return until the launched app closes,
+        which could hang the whole app. Popen + no wait avoids that."""
         try:
             system = sys.platform
             if system == "darwin":
-                subprocess.run(["open", path], check=False)
+                subprocess.Popen(["open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             elif system.startswith("win"):
-                os.startfile(path)  # type: ignore[attr-defined]
+                os.startfile(path)  # type: ignore[attr-defined]  # non-blocking by design
             else:
-                subprocess.run(["xdg-open", path], check=False)
+                subprocess.Popen(
+                    ["xdg-open", path],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
         except Exception:
             pass  # opening a file browser is a convenience action; failures are non-fatal
 
@@ -2279,7 +2705,7 @@ class MainWindow(QMainWindow):
                 added += 1
         if added:
             self.statusBar().showMessage(f"Re-queued {added} item(s)", 4000)
-            self.tabs.setCurrentIndex(0)
+            self.tabs.setCurrentIndex(self.queue_tab_index)
 
     def _clear_history(self):
         reply = QMessageBox.question(
@@ -2293,29 +2719,29 @@ class MainWindow(QMainWindow):
     # -- window close behavior --------------------------------------------
     def closeEvent(self, event):
         active = any(it.status == STATUS_DOWNLOADING for it in self.queue_items.values())
-        minimize_to_tray = self.settings.value("minimize_to_tray", "true") == "true"
-
-        if minimize_to_tray and not getattr(self, "_force_quit_flag", False):
+        message = ("Downloads are still running. Stop them and close Media Downloader Pro?"
+                   if active else "Are you sure you want to close Media Downloader Pro?")
+        reply = QMessageBox.question(
+            self, "Exit Media Downloader Pro", message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
             event.ignore()
-            self.hide()
-            self.tray_icon.showMessage(APP_DISPLAY_NAME, "Still running in the background.",
-                                        QSystemTrayIcon.MessageIcon.Information, 3000)
             return
-
         if active:
-            reply = QMessageBox.question(
-                self, "Downloads in progress",
-                "Downloads are still running. Stop them and quit?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                event.ignore()
-                return
-            for runnable in list(self.runnables.values()):
-                runnable.cancel()
-            self.thread_pool.waitForDone(3000)
-
+            self._shutdown_all_work()
         event.accept()
+
+    def _shutdown_all_work(self):
+        """Cancels everything and waits only briefly — never indefinitely —
+        so quitting the app can never hang the device. runnable.cancel()
+        now also kills any ffmpeg/ffprobe subprocess that download had
+        spawned, so nothing lingers in the background after this returns."""
+        self.thread_pool.clear()  # drop anything not yet started
+        for runnable in list(self.runnables.values()):
+            runnable.cancel()
+        self.thread_pool.waitForDone(3000)
 
 
 # ----------------------------------------------------------------------------
@@ -2355,14 +2781,24 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_DISPLAY_NAME)
     app.setOrganizationName(APP_ORG)
-    app.setQuitOnLastWindowClosed(False)  # keep running while minimized to tray
-
-    if not QSystemTrayIcon.isSystemTrayAvailable():
-        # Not fatal — just means "minimize to tray" won't have visible effect.
-        pass
+    app.setWindowIcon(make_app_icon())
 
     window = MainWindow()
     window.show()
+
+    def _final_cleanup():
+        """Last-resort safety net so the process can never hang on exit,
+        no matter which path triggered the quit (tray Quit, Cmd/Ctrl+Q,
+        OS session end, etc.) — closeEvent() already does this for the
+        normal window-close path, but this covers everything else too.
+        Bounded wait only; never blocks indefinitely."""
+        pool = QThreadPool.globalInstance()
+        pool.clear()
+        for runnable in list(getattr(window, "runnables", {}).values()):
+            runnable.cancel()
+        pool.waitForDone(2000)
+
+    app.aboutToQuit.connect(_final_cleanup)
 
     sys.exit(app.exec())
 
