@@ -6,15 +6,18 @@ import os
 import subprocess
 import logging
 import copy
+import math
+from datetime import datetime, timedelta
 from typing import List
+import keyboard
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
     QPushButton, QLabel, QListWidget, QSpinBox, QCheckBox, QSplitter, QFrame, QInputDialog,
     QMessageBox, QDialog, QComboBox, QFileDialog, QLineEdit, QDoubleSpinBox, QListWidgetItem,
-    QFormLayout, QGroupBox, QSizePolicy, QGridLayout, QTextEdit, QStyleFactory
+    QFormLayout, QGroupBox, QSizePolicy, QGridLayout, QTextEdit, QStyleFactory, QTimeEdit, QButtonGroup
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QPropertyAnimation, QEasingCurve, QSettings
-from PyQt6.QtGui import QKeySequence, QFont, QCursor, QPalette, QPixmap
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QPropertyAnimation, QEasingCurve, QSettings, QTime
+from PyQt6.QtGui import QKeySequence, QFont, QCursor, QPalette, QPixmap, QPainter, QPen, QBrush, QColor
 
 try:
     import pyautogui
@@ -23,7 +26,7 @@ try:
     pyautogui.PAUSE = 0.1      # Pause between actions for stability
     logging.info("PyAutoGUI imported and configured successfully")
     logging.debug(f"Screen size: {pyautogui.size()}")
-    
+
     # Safely import pyscreeze to handle ImageNotFoundException gracefully
     try:
         import pyscreeze
@@ -83,8 +86,56 @@ def lock_workstation():
             logging.warning(f"Workstation locking not supported on platform: {sys.platform}")
     except Exception as e:
         logging.error(f"Failed to lock workstation: {e}")
-###
-# ---- Model for a sequence step ----
+
+class MouseMonitor:
+    def __init__(self, on_movement_detected, on_idle_detected, check_interval=0.5):
+        self.on_movement_detected = on_movement_detected
+        self.on_idle_detected = on_idle_detected
+        self.check_interval = check_interval
+        self._running = False
+        self._last_pos = None
+        self._idle_timer = None
+        
+    def start(self):
+        self._running = True
+        self._last_pos = pyautogui.position() if pyautogui else None
+        self._check_loop()
+        
+    def stop(self):
+        self._running = False
+        if self._idle_timer:
+            self._idle_timer.stop()
+            
+    def _check_loop(self):
+        if not self._running: return
+        try:
+            if pyautogui:
+                pos = pyautogui.position()
+            else:
+                from PyQt6.QtGui import QCursor
+                pos = QCursor.pos()
+                
+            if self._last_pos and pos != self._last_pos:
+                self.on_movement_detected()
+                self._last_pos = pos
+                self._idle_timer = None
+            else:
+                if not self._idle_timer:
+                    self._idle_timer = QTimer()
+                    self._idle_timer.timeout.connect(self._on_idle_timeout)
+                if self._idle_timer.isActive() is False:
+                    self._idle_timer.start(int(self.check_interval * 1000))
+        except Exception as e:
+            logging.error(f"Mouse monitor error: {e}")
+        
+        if self._running:
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(int(self.check_interval * 1000), self._check_loop)
+            
+    def _on_idle_timeout(self):
+        self.on_idle_detected()
+        self._idle_timer.stop()
+        self._idle_timer = None
 class Step:
     def __init__(self, action: str, params: dict, delay: float = 0.5, note: str = ""):
         self.action = action
@@ -147,6 +198,8 @@ class Step:
             icon, desc = "📋", "Type current clipboard content"
         elif self.action == "System Beep":
             icon, desc = "🔊", "Play system beep/alert"
+        elif self.action == "Mouse Monitor":
+            icon, desc = "[SEC]", f"Mouse Monitor: {p.get('trigger', 'No movement')} -> {p.get('security_action', 'Lock workstation')}"
         else:
             desc = f"{self.action}: {self.params}"
             
@@ -578,6 +631,293 @@ class KeyPressDialog(QDialog):
             pass
         super().closeEvent(event)
 
+class ClockFaceWidget(QWidget):
+    def __init__(self, initial_time: QTime, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(280, 280)
+        self.time = initial_time
+        self.mode = "Hour"
+
+    def set_mode(self, mode):
+        self.mode = mode
+        self.update()
+
+    def mousePressEvent(self, event):
+        center = self.rect().center()
+        dx = event.position().x() - center.x()
+        dy = event.position().y() - center.y()
+        distance = math.hypot(dx, dy)
+        if distance < 35 or distance > 135:
+            return
+        angle = (math.degrees(math.atan2(dy, dx)) + 90) % 360
+        if self.mode == "Hour":
+            selected_hour = int(round(angle / 30)) % 12
+            selected_hour = 12 if selected_hour == 0 else selected_hour
+            current_hour = self.time.hour()
+            if current_hour >= 12:
+                selected_hour = selected_hour % 12 + 12 if selected_hour < 12 else selected_hour
+            else:
+                selected_hour = selected_hour % 12
+            self.time = self.time.addSecs((selected_hour - current_hour) * 3600)
+        elif self.mode == "Minute":
+            selected_minute = int(round(angle / 6)) % 60
+            self.time = QTime(self.time.hour(), selected_minute, self.time.second())
+        else:
+            selected_second = int(round(angle / 6)) % 60
+            self.time = QTime(self.time.hour(), self.time.minute(), selected_second)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        center = self.rect().center()
+        radius = min(self.width(), self.height()) // 2 - 12
+        painter.setBrush(QBrush(QColor("#f7f9f9")))
+        painter.setPen(QPen(QColor("#566573"), 2))
+        painter.drawEllipse(center, radius, radius)
+
+        if self.mode == "Hour":
+            value = self.time.hour()
+        elif self.mode == "Minute":
+            value = self.time.minute()
+        else:
+            value = self.time.second()
+        divisions = 12 if self.mode == "Hour" else 60
+        for index in range(divisions):
+            angle = math.radians(index * 360 / divisions - 90)
+            text_radius = radius - 28
+            x = center.x() + text_radius * math.cos(angle)
+            y = center.y() + text_radius * math.sin(angle)
+            if self.mode == "Hour":
+                text = str(index if index else 12)
+                selected = value % 12 == (index if index else 12) % 12
+            else:
+                if index % 5:
+                    continue
+                text = f"{index:02d}"
+                selected = value == index
+            if selected:
+                painter.setBrush(QBrush(QColor("#2980b9")))
+                painter.setPen(QPen(QColor("#2980b9")))
+                painter.drawEllipse(int(x - 17), int(y - 17), 34, 34)
+                painter.setPen(QPen(QColor("#ffffff")))
+            else:
+                painter.setPen(QPen(QColor("#2c3e50")))
+            painter.drawText(int(x - 18), int(y - 10), 36, 20, Qt.AlignmentFlag.AlignCenter, text)
+
+        painter.setPen(QPen(QColor("#e74c3c"), 3))
+        hand_value = value % 12 if self.mode == "Hour" else value
+        hand_angle = math.radians(hand_value * (30 if self.mode == "Hour" else 6) - 90)
+        hand_length = radius - 52
+        painter.drawLine(center, QPoint(int(center.x() + hand_length * math.cos(hand_angle)), int(center.y() + hand_length * math.sin(hand_angle))))
+        painter.setBrush(QBrush(QColor("#e74c3c")))
+        painter.drawEllipse(center, 5, 5)
+
+class VisualTimePickerDialog(QDialog):
+    def __init__(self, initial_time: QTime, title: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setModal(True)
+        self.selected_time = initial_time
+        layout = QVBoxLayout(self)
+        self.value_label = QLabel()
+        self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.value_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #2c3e50;")
+        layout.addWidget(self.value_label)
+        mode_layout = QHBoxLayout()
+        self.mode_group = QButtonGroup(self)
+        self.mode_buttons = {}
+        for mode_name in ["Hour", "Minute", "Second"]:
+            mode_button = QPushButton(mode_name)
+            mode_button.setCheckable(True)
+            mode_button.setMinimumWidth(82)
+            self.mode_group.addButton(mode_button)
+            self.mode_buttons[mode_name] = mode_button
+            mode_layout.addWidget(mode_button)
+            mode_button.clicked.connect(lambda checked, name=mode_name: self.select_mode(name))
+        self.mode_buttons["Hour"].setChecked(True)
+        layout.addLayout(mode_layout)
+        self.clock = ClockFaceWidget(initial_time, self)
+        layout.addWidget(self.clock, alignment=Qt.AlignmentFlag.AlignCenter)
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        ok_button = QPushButton("OK")
+        cancel_button = QPushButton("Cancel")
+        ok_button.clicked.connect(self.accept)
+        cancel_button.clicked.connect(self.reject)
+        buttons.addWidget(ok_button)
+        buttons.addWidget(cancel_button)
+        layout.addLayout(buttons)
+        self.clock.mousePressEvent = self._clock_clicked
+        self.refresh_value()
+
+    def select_mode(self, mode_name):
+        self.clock.set_mode(mode_name)
+        self.refresh_value()
+
+    def _clock_clicked(self, event):
+        ClockFaceWidget.mousePressEvent(self.clock, event)
+        self.selected_time = self.clock.time
+        self.refresh_value()
+
+    def refresh_value(self):
+        self.value_label.setText(self.clock.time.toString("HH:mm:ss"))
+
+class MouseMonitorDialog(QDialog):
+    step_confirmed = pyqtSignal(Step)
+
+    def __init__(self, existing_step: Step = None, parent=None):
+        super().__init__(parent)
+        self.existing = existing_step
+        self.setWindowTitle("Configure Mouse Monitor")
+        self.setMinimumWidth(520)
+        self.init_ui()
+
+    def init_ui(self):
+        p = self.existing.params if self.existing else {}
+        layout = QVBoxLayout(self)
+        group = QGroupBox("Monitoring Schedule")
+        form = QFormLayout(group)
+
+        self.start_mode = QComboBox()
+        self.start_mode.addItems(["Immediately", "After delay", "At specific time"])
+        self.start_mode.setCurrentText(p.get("start_mode", "Immediately"))
+        self.start_delay = QDoubleSpinBox()
+        self.start_delay.setRange(0.1, 604800)
+        self.start_delay.setValue(float(p.get("start_delay_value", p.get("start_delay", 0.1))))
+        self.start_delay_unit = QComboBox()
+        self.start_delay_unit.addItems(["Seconds", "Minutes", "Hours"])
+        self.start_delay_unit.setCurrentText(p.get("start_delay_unit", "Seconds"))
+        self.start_time = QTimeEdit()
+        self.start_time.setDisplayFormat("HH:mm:ss")
+        self.start_time.setMinimumWidth(110)
+        self.start_time.setToolTip("Select the clock time when monitoring should begin.")
+        self.start_time.setTime(QTime.fromString(p.get("start_time", "00:00:00"), "HH:mm:ss"))
+        if not self.start_time.time().isValid():
+            self.start_time.setTime(QTime.currentTime())
+        form.addRow("Start monitoring:", self.start_mode)
+        delay_layout = QHBoxLayout()
+        delay_layout.addWidget(self.start_delay)
+        delay_layout.addWidget(self.start_delay_unit)
+        form.addRow("Start delay:", delay_layout)
+        start_time_layout = QHBoxLayout()
+        start_time_layout.addWidget(self.start_time)
+        self.start_time_button = QPushButton("Select time...")
+        self.start_time_button.clicked.connect(lambda: self.select_time(self.start_time, "Select start time"))
+        start_time_layout.addWidget(self.start_time_button)
+        form.addRow("Start at:", start_time_layout)
+
+        self.stop_mode = QComboBox()
+        self.stop_mode.addItems(["Manually / until released", "After duration", "At specific time"])
+        self.stop_mode.setCurrentText(p.get("stop_mode", "Manually / until released"))
+        self.stop_duration = QDoubleSpinBox()
+        self.stop_duration.setRange(0.1, 604800)
+        self.stop_duration.setValue(float(p.get("stop_duration", 3600)))
+        self.stop_time = QTimeEdit()
+        self.stop_time.setDisplayFormat("HH:mm:ss")
+        self.stop_time.setMinimumWidth(110)
+        self.stop_time.setToolTip("Select the clock time when monitoring should stop.")
+        self.stop_time.setTime(QTime.fromString(p.get("stop_time", "23:59:59"), "HH:mm:ss"))
+        stop_time_layout = QHBoxLayout()
+        stop_time_layout.addWidget(self.stop_time)
+        self.stop_time_button = QPushButton("Select time...")
+        self.stop_time_button.clicked.connect(lambda: self.select_time(self.stop_time, "Select stop time"))
+        stop_time_layout.addWidget(self.stop_time_button)
+        form.addRow("Stop monitoring:", self.stop_mode)
+        form.addRow("Duration (seconds):", self.stop_duration)
+        form.addRow("Stop at:", stop_time_layout)
+        layout.addWidget(group)
+
+        trigger_group = QGroupBox("Trigger and Security Action")
+        trigger_form = QFormLayout(trigger_group)
+        self.trigger = QComboBox()
+        self.trigger.addItems(["Mouse movement detected", "No movement for idle period"])
+        self.trigger.setCurrentText(p.get("trigger", "No movement for idle period"))
+        self.idle_seconds = QDoubleSpinBox()
+        self.idle_seconds.setRange(0.1, 604800)
+        self.idle_seconds.setValue(float(p.get("idle_seconds", 300)))
+        self.security_action = QComboBox()
+        self.security_action.addItems([
+            "Lock workstation", "Shut down computer", "Log off user", "Sleep computer",
+            "Run command", "Stop monitor only"
+        ])
+        self.security_action.setCurrentText(p.get("security_action", "Lock workstation"))
+        self.command = QLineEdit(p.get("command", ""))
+        self.command.setPlaceholderText("Command to run when triggered")
+        self.release_shortcut = QLineEdit(p.get("release_shortcut", "F12"))
+        self.release_shortcut.setPlaceholderText("Example: F12 or ctrl+shift+f12")
+        trigger_form.addRow("Trigger when:", self.trigger)
+        trigger_form.addRow("Idle period (seconds):", self.idle_seconds)
+        trigger_form.addRow("Security action:", self.security_action)
+        trigger_form.addRow("Command:", self.command)
+        trigger_form.addRow("Release shortcut:", self.release_shortcut)
+        layout.addWidget(trigger_group)
+
+        hint = QLabel("The release shortcut cancels monitoring before its action. It cannot unlock Windows after the workstation is locked.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        layout.addWidget(hint)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        save = StyledButton("Save Step", "#27ae60", "#218c53", "#145d32")
+        cancel = StyledButton("Cancel", "#bdc3c7", "#979a9a", "#616a6b")
+        save.clicked.connect(self.accept_step)
+        cancel.clicked.connect(self.reject)
+        buttons.addWidget(save)
+        buttons.addWidget(cancel)
+        layout.addLayout(buttons)
+        self.start_mode.currentTextChanged.connect(self.update_schedule_state)
+        self.stop_mode.currentTextChanged.connect(self.update_schedule_state)
+        self.update_schedule_state()
+        self.security_action.currentTextChanged.connect(self.update_command_state)
+        self.update_command_state(self.security_action.currentText())
+
+    def update_schedule_state(self):
+        start_is_delay = self.start_mode.currentText() == "After delay"
+        start_is_clock = self.start_mode.currentText() == "At specific time"
+        stop_is_duration = self.stop_mode.currentText() == "After duration"
+        stop_is_clock = self.stop_mode.currentText() == "At specific time"
+        self.start_delay.setEnabled(start_is_delay)
+        self.start_delay_unit.setEnabled(start_is_delay)
+        self.start_time.setEnabled(start_is_clock)
+        self.start_time_button.setEnabled(start_is_clock)
+        self.stop_duration.setEnabled(stop_is_duration)
+        self.stop_time.setEnabled(stop_is_clock)
+        self.stop_time_button.setEnabled(stop_is_clock)
+
+    def select_time(self, time_edit, title):
+        picker = VisualTimePickerDialog(time_edit.time(), title, self)
+        if picker.exec() == QDialog.DialogCode.Accepted:
+            time_edit.setTime(picker.selected_time)
+
+    def update_command_state(self, action):
+        self.command.setEnabled(action == "Run command")
+
+    def accept_step(self):
+        if self.security_action.currentText() == "Run command" and not self.command.text().strip():
+            QMessageBox.warning(self, "Missing Command", "Enter a command for the selected security action.")
+            return
+        delay_multipliers = {"Seconds": 1, "Minutes": 60, "Hours": 3600}
+        delay_unit = self.start_delay_unit.currentText()
+        params = {
+            "start_mode": self.start_mode.currentText(),
+            "start_delay": self.start_delay.value() * delay_multipliers[delay_unit],
+            "start_delay_value": self.start_delay.value(),
+            "start_delay_unit": delay_unit,
+            "start_time": self.start_time.time().toString("HH:mm:ss"),
+            "stop_mode": self.stop_mode.currentText(),
+            "stop_duration": self.stop_duration.value(),
+            "stop_time": self.stop_time.time().toString("HH:mm:ss"),
+            "trigger": self.trigger.currentText(),
+            "idle_seconds": self.idle_seconds.value(),
+            "security_action": self.security_action.currentText(),
+            "command": self.command.text(),
+            "release_shortcut": self.release_shortcut.text().strip() or "F12"
+        }
+        self.step_confirmed.emit(Step("Mouse Monitor", params, 0, ""))
+        self.accept()
+
 class CoordsOverlay(QDialog):
     closed = pyqtSignal()
     def __init__(self, parent=None):
@@ -755,6 +1095,9 @@ class MainWindow(QMainWindow):
             self.paused = False
             self.abort_flag = threading.Event()
             self.overlay = None
+            self.mouse_monitor_stop = threading.Event()
+            self.mouse_monitor_thread = None
+            self.mouse_monitor_config = None
             
             self.start_animation = None
             self.stop_animation = None
@@ -829,7 +1172,8 @@ class MainWindow(QMainWindow):
             ("Clipboard", "#34495e", "#2c3e50", "#1a252f"),
             ("Type Clipboard", "#34495e", "#2c3e50", "#1a252f"),
             ("Python Code", "#d35400", "#a04000", "#78281f"),
-            ("System Beep", "#f39c12", "#b9770e", "#874e04")
+            ("System Beep", "#f39c12", "#b9770e", "#874e04"),
+            ("Mouse Monitor", "#7f8c8d", "#626567", "#424949")
         ]
         
         row, col = 0, 0
@@ -1189,7 +1533,9 @@ class MainWindow(QMainWindow):
 
     def open_step_dialog(self, action: str, existing_step: Step = None, edit_index: int = -1):
         try:
-            if action in ["Key Press", "Key Down", "Key Up", "Hotkey"]:
+            if action == "Mouse Monitor":
+                dlg = MouseMonitorDialog(existing_step, self)
+            elif action in ["Key Press", "Key Down", "Key Up", "Hotkey"]:
                 dlg = KeyPressDialog(action, existing_step, self)
             else:
                 dlg = UnifiedStepDialog(action, existing_step, self)
@@ -1437,6 +1783,134 @@ class MainWindow(QMainWindow):
             self.start_btn.setEnabled(True)
             self.stop_btn.setEnabled(False)
 
+    def stop_mouse_monitor(self):
+        if self.mouse_monitor_thread and self.mouse_monitor_thread.is_alive():
+            logging.info("Stopping mouse monitor")
+            self.mouse_monitor_stop.set()
+            self.status_update.emit("Mouse monitor stopped.")
+
+    def start_mouse_monitor(self, config):
+        self.stop_mouse_monitor()
+        self.mouse_monitor_stop = threading.Event()
+        self.mouse_monitor_config = copy.deepcopy(config)
+        self.mouse_monitor_thread = threading.Thread(
+            target=self.run_mouse_monitor,
+            args=(self.mouse_monitor_config, self.mouse_monitor_stop),
+            daemon=True
+        )
+        self.mouse_monitor_thread.start()
+        self.status_update.emit("Mouse monitor scheduled.")
+
+    @staticmethod
+    def _next_clock_time(value: str) -> datetime:
+        try:
+            parsed = datetime.strptime(value, "%H:%M:%S").time()
+        except (TypeError, ValueError):
+            parsed = datetime.now().time()
+        target = datetime.combine(datetime.now().date(), parsed)
+        if target <= datetime.now():
+            target += timedelta(days=1)
+        return target
+
+    def _perform_monitor_action(self, config):
+        action = config.get("security_action", "Lock workstation")
+        logging.warning(f"Mouse monitor triggered security action: {action}")
+        if action == "Lock workstation":
+            lock_workstation()
+        elif action == "Shut down computer":
+            subprocess.Popen("shutdown /s /t 0", shell=True)
+        elif action == "Log off user":
+            subprocess.Popen("shutdown /l", shell=True)
+        elif action == "Sleep computer":
+            if sys.platform == "win32":
+                subprocess.Popen("rundll32.exe powrprof.dll,SetSuspendState 0,1,0", shell=True)
+            else:
+                subprocess.Popen("systemctl suspend", shell=True)
+        elif action == "Run command":
+            subprocess.Popen(config.get("command", ""), shell=True)
+
+    def run_mouse_monitor(self, config, stop_event):
+        try:
+            start_mode = config.get("start_mode", "Immediately")
+            if start_mode == "After delay":
+                if stop_event.wait(float(config.get("start_delay", 0.1))):
+                    return
+            elif start_mode == "At specific time":
+                target = self._next_clock_time(config.get("start_time", "00:00:00"))
+                while not stop_event.is_set():
+                    remaining = (target - datetime.now()).total_seconds()
+                    if remaining <= 0:
+                        break
+                    stop_event.wait(min(remaining, 0.25))
+
+            if stop_event.is_set():
+                return
+
+            self.status_update.emit("Mouse monitoring active.")
+            logging.info(f"Mouse monitor active with configuration: {config}")
+            keyboard_module = None
+            try:
+                import keyboard as keyboard_module
+            except ImportError:
+                logging.warning("The 'keyboard' package is unavailable; release shortcut polling is disabled.")
+
+            release_shortcut = config.get("release_shortcut", "F12").strip()
+            trigger = config.get("trigger", "No movement for idle period")
+            previous_position = None
+            last_movement = time.monotonic()
+            monitor_started = time.monotonic()
+            stop_mode = config.get("stop_mode", "Manually / until released")
+            duration_deadline = monitor_started + float(config.get("stop_duration", 3600))
+            stop_clock = self._next_clock_time(config.get("stop_time", "23:59:59"))
+
+            while not stop_event.is_set():
+                if keyboard_module and release_shortcut:
+                    try:
+                        if keyboard_module.is_pressed(release_shortcut):
+                            self.status_update.emit("Mouse monitor released by shortcut.")
+                            logging.info(f"Mouse monitor released by shortcut: {release_shortcut}")
+                            stop_event.set()
+                            break
+                    except Exception as shortcut_error:
+                        logging.debug(f"Could not poll monitor shortcut '{release_shortcut}': {shortcut_error}")
+
+                now = time.monotonic()
+                if stop_mode == "After duration" and now >= duration_deadline:
+                    self.status_update.emit("Mouse monitor duration completed.")
+                    break
+                if stop_mode == "At specific time" and datetime.now() >= stop_clock:
+                    self.status_update.emit("Mouse monitor stop time reached.")
+                    break
+
+                if pyautogui:
+                    position = tuple(pyautogui.position())
+                else:
+                    cursor = QCursor.pos()
+                    position = (cursor.x(), cursor.y())
+                if previous_position is None:
+                    previous_position = position
+                elif position != previous_position:
+                    previous_position = position
+                    last_movement = now
+                    if trigger == "Mouse movement detected":
+                        self._perform_monitor_action(config)
+                        break
+                elif trigger == "No movement for idle period":
+                    idle_seconds = float(config.get("idle_seconds", 300))
+                    if now - last_movement >= idle_seconds:
+                        self._perform_monitor_action(config)
+                        break
+                stop_event.wait(0.1)
+
+            if not stop_event.is_set():
+                logging.info("Mouse monitor ended without a security action")
+        except Exception as monitor_error:
+            logging.error(f"Mouse monitor failed: {monitor_error}")
+            self.status_update.emit("Mouse monitor error.")
+        finally:
+            stop_event.set()
+            self.status_update.emit("Mouse monitoring inactive.")
+
     def execute_step(self, step: Step):
         original_failsafe = None
         def sanitize_key(k_str):
@@ -1606,6 +2080,9 @@ class MainWindow(QMainWindow):
                     sys.stdout.flush()
                 logging.debug("System beep")
 
+            elif step.action == "Mouse Monitor":
+                self.start_mouse_monitor(p)
+
             elif step.action == "Hotkey":
                 hotkey_str = p.get("hotkey", "")
                 if not hotkey_str: raise ValueError("Hotkey empty")
@@ -1624,6 +2101,10 @@ class MainWindow(QMainWindow):
                 if original_failsafe is not None:
                     pyautogui.FAILSAFE = original_failsafe
             except: pass
+
+    def closeEvent(self, event):
+        self.stop_mouse_monitor()
+        super().closeEvent(event)
 
 if __name__ == "__main__":
     try:
